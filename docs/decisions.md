@@ -1,0 +1,136 @@
+# decisions.md — Registro de decisiones y pendientes de aprobación
+
+> **Estado**: FASE 0. Se actualiza con cada decisión tomada.
+> Reglas: toda decisión relevante se registra aquí con número, contexto, alternativas y consecuencia. Las decisiones **D-XXX** están tomadas; las **P-XXX** requieren aprobación de Adrián antes de avanzar. Cambios de contrato → bump de versión en los documentos afectados (`architecture.md` §11).
+
+---
+
+## A. Decisiones tomadas
+
+### D-001 — Contrato matemático + estrategia libre por motor
+**Contexto**: la comparación entre lenguajes exige que nadie obtenga ventaja de una arquitectura distinta, pero también quiere medir lo que cada ecosistema logra realmente.
+**Decisión** (aprobada por Adrián, 2026-11-10): el contrato (`docs/model.md`) fija la **función matemática exacta**, formas y convenciones. Cada motor elige su **estrategia interna** (im2col+GEMM, bucles directos, etc.) y la documenta en su informe. Las tolerancias de `architecture.md` §12 garantizan la equivalencia.
+**Alternativas descartadas**: algoritmo canónico único (mediría el intérprete de Python en convoluciones, no el sistema); doble implementación canónica+optimizada (duplicaría LOC y el trabajo en 6 lenguajes).
+**Consecuencia**: el LOC y la dificultad difieren legítimamente entre motores; queda registrado como parte de lo que se estudia.
+
+### D-002 — Mono-hilo estricto como categoría principal del benchmark
+**Decisión** (aprobada): CPU, FP32, sin GPU, 1 hilo (`taskset -c 0`, variables BLAS a 1, gobernador performance). Modalidad multi-hilo definida pero desactivada (`benchmark.md` §10).
+**Consecuencia**: comparación núcleo a núcleo, reproducible y coherente con la modalidad declarada. El paralelismo se estudia en fase posterior sin contaminar los resultados iniciales.
+
+### D-003 — Selección estratificada determinista con permutación canónica
+**Decisión** (aprobada): cuotas exactas por clase (reparto de restos por orden ascendente de id) + Fisher-Yates con splitmix64 documentado, semillas fijas. Los motores cargan manifiestos, no regeneran (`dataset.md` §5).
+**Consecuencia**: composición equilibrada entre las 9 clases negativas y reproducibilidad total sin PRNG en runtime.
+
+### D-004 — Salida en logit + BCE con logits numéricamente estable
+**Decisión** (de la especificación de Adrián, formalizada): la red produce un logit; la pérdida consume logits con la forma `max(z,0) − z·y + log(1+e^{−|z|})`; Sigmoid solo en inferencia/métricas. El gradiente analítico combinado `dZ = (σ(z) − y)/N` inicia el backward.
+
+### D-005 — Sin BatchNorm, Dropout ni capas extra
+**Decisión** (de la especificación): arquitectura exactamente las 10 capas de `model.md` §3. Cualquier capa adicional exige una decisión nueva con justificación y actualización de contrato.
+
+### D-006 — Artefactos de referencia generados una vez por la herramienta Python
+**Decisión**: pesos iniciales, permutaciones y vectores de prueba se generan una única vez con semillas registradas (maestra `20261110`) y viven en `shared/` en formatos independientes del lenguaje. Ningún motor genera aleatoriedad.
+**Detalle pendiente**: generador exacto de normales para He/Xavier → **P-001**.
+
+### D-007 — Permutaciones de época pregeneradas como ficheros
+**Decisión**: 20 ficheros `.perm` (uint32 LE) en `shared/permutations/`. El orden de presentación de muestras es idéntico en los seis motores sin implementar PRNG.
+**Alternativa descartada**: PRNG implementado por cada motor (riesgo de divergencia por diferencias sutiles de implementación; complejidad extra sin beneficio para la comparación).
+
+### D-008 — Convenciones de borde: ReLU(0) y empates de MaxPool
+**Decisión**: derivada de ReLU en 0 = 0 (subgradiente). Empate en MaxPool: el gradiente va al primer máximo en orden raster. Ambas reglas son trazales a cualquier lenguaje (evitan ambigüedad y son reproducibles).
+
+### D-009 — Dataset derivado uint8 crudo + normalización bit-exacta en carga
+**Decisión**: `shared/dataset/*.bin` en uint8 CHW (mismos bytes que el original, reshape puro). Cada motor normaliza `float32(u8)/255.0` al cargar: conversión y división son operaciones IEEE exactas → entradas bit-idénticas en los seis lenguajes sin almacenar FP32.
+
+### D-010 — Particiones y modelo final sin selección
+**Decisión**: validation sale del pool de entrenamiento; test solo del pool de test; sin early stopping ni selección de mejor época: el modelo evaluado es el de la época 20. Evita comparar motores con criterios de selección distintos.
+
+### D-011 — Independencia estricta de datos de cada motor
+**Decisión**: ningún motor lee el tar.gz original, pickle, HTTP ni manifiesto de descarga. Solo la herramienta Python (`scripts/`). El motor Python tampoco puede leer pickle (por simetría contractual con los otros cinco).
+
+### D-012 — Métricas de calidad calculadas por un evaluador común
+**Decisión**: los motores solo escriben `test_logits.csv`; precision/recall/F1/AUC/calibración las calcula `scripts/evaluate.py` idéntico para todos. El cálculo de métricas no forma parte del código medido.
+
+### D-013 — Arnés de medición externo
+**Decisión**: `benchmark/harness/` lanza cada motor en subproceso con entorno controlado y mide desde fuera (`/proc`, reloj monotónico). Metodología de medición idéntica para los seis.
+
+### D-014 — Entrada de inferencia cruda y esquema JSON
+**Decisión**: `--image`/`--batch` aceptan binarios uint8 de 3072·N bytes (layout del dataset). Sin decodificación PNG/JPEG en ningún motor. Salida JSON `{prediction, probability, confidence}` con `confidence = max(σ(z), 1−σ(z))`, umbral logit ≥ 0.
+
+### D-015 — Reglas de coma flotante
+**Decisión**: FP32 en todo el grafo; FMA permitido (cubierto por tolerancias); `-ffast-math` y equivalentes prohibidos en las builds medidas; NaN/Inf abortan el entrenamiento. Determinismo bit a bit exigido dentro de cada motor (misma máquina, mismo modo).
+
+### D-016 — Formato de intercambio de tensores: TensorBundle v1
+**Decisión**: formato binario little-endian autodescrito con índice por nombre (`architecture.md` §5) para pesos, checkpoints y vectores de prueba. Legible en C puro sin dependencias.
+
+### D-017 — Política de git de artefactos
+**Decisión**: se suben a git los artefactos contrato **congelados** (pesos iniciales y vectores de prueba, ~4 MB con checksums) para que el contrato no dependa de regeneraciones; quedan fuera los binarios grandes regenerables de forma bit-exacta por PRNG propio (dataset `*.bin`, `*.perm`, tar.gz) y las salidas de motores (`runs/`).
+
+---
+
+## B. Decisiones pendientes de aprobación
+
+> **Necesito que revises estas antes de pasar a FASE 2.** Cada una tiene recomendación y alternativa.
+
+### P-001 — Generador de normales para los pesos iniciales *(bloquea FASE 2)*
+He/Xavier muestrean de N(0, std²). Hay que fijar cómo se transforman los uniformes de splitmix64 en normales:
+- **Recomendada**: **Box-Muller clásico** — pares `(u1, u2)` → `r·cos(2πu1), r·sin(2πu2)` con `r = sqrt(−2 ln u1)`. Número de extracciones fijo (sin rechazos), flujo documentable, ~15 líneas.
+- Alternativa 1: **Ziggurat** — más rápido, pero tablas complejas y riesgo de errores entre implementaciones (y la velocidad aquí es irrelevante: se ejecuta una vez).
+- Alternativa 2: **CDF inversa** — simple, pero depende de la implementación de `erfinv` del lenguaje.
+**Nota**: solo lo ejecuta `scripts/` (los motores cargan el fichero), así que el criterio es auditabilidad, no velocidad. Orden de llenado propuesto: `conv1.weight`, `conv2.weight`, `dense1.weight`, `dense2.weight` (secuencial, un solo flujo).
+
+### P-002 — Validación por lotes de 32 con último lote parcial
+1000/32 = 31 lotes de 32 + 1 de 8. Alternativa: validar en un solo lote de 1000 (pico de RAM mayor: ~50 MB de activaciones frente a ~4 MB). **Recomendada**: lotes de 32, uniforme con entrenamiento y con la estructura por lotes del benchmark. Aceptación implícita si no objetas al leer `training.md` §4.
+
+### P-003 — Banda T3 de equivalencia estadística (provisional)
+`val_accuracy` ±0,03 y `val_loss` ±10 % tras 20 épocas. Es una **estimación**: no hay datos reales todavía. Propuesta: aprobarla como provisional y revisarla con los dos primeros motores (protocolo ya definido en `training.md` §9: si se supera, se investiga T1/T2 antes de tocar la banda).
+
+### P-004 — Número de repeticiones del benchmark
+5 ejecuciones de entrenamiento + calentamiento de 1 época + 1000 medidas de latencia. **Recomendada**: aprobar como configuración inicial con la regla anti-ruido ya definida (si std relativa > 5 % → repetir sesión). Una sesión completa por motor puede tardar horas; 5 repite el equilibrio entre estadística y coste.
+
+### P-005 — Relación con `rust-ai-core`
+El proyecto existente `~/Proyectos/rust-ai-core` (tensores, autograd desde cero) solapa con el futuro motor Rust de ImageAI-Benchmark.
+- **Recomendada**: **implementación nueva** para ImageAI-Benchmark: reutilizar crates rompería la métrica de LOC/complejidad (compararía ecosistemas distintos) y arrastraría autograd, que aquí está prohibido (backprop manual).
+- Alternativa: reutilizar `ai-tensor` solo como utilidad de I/O… también contamina la comparación.
+**Nota**: el conocimiento matemático sí se reutiliza (está en la bóveda y en la memoria del proyecto).
+
+### P-006 — Backend BLAS de NumPy: registrar vs. restringir
+La velocidad de `np.matmul` depende del BLAS (OpenBLAS/MKL/…).
+- **Recomendada**: **registrar** (`np.show_config()` en `meta`) y no restringir: el backend BLAS es parte legítima del stack de Python que se estudia; restringirlo falsearía el motor.
+- Alternativa: fijar OpenBLAS explícito para reproducibilidad externa.
+
+### P-007 — Remoto del repositorio
+¿Repositorio local sin remoto, o remoto GitHub (privado/público)? El índice de repositorios de la bóveda sugiere registrar el que se elija. Sin respuesta, queda **local** (con commits por fases, como el resto de proyectos sin remoto).
+
+### P-008 — Registro del tiempo de desarrollo (categoría complejidad)
+Para la métrica «tiempo de desarrollo» del benchmark:
+- **Recomendada**: registro manual por sesión en una tabla del informe de cada motor (horas por fase, con fecha), sin herramientas automáticas.
+- Alternativa: automatizarlo desde las sesiones de la bóveda (más ruido que señal: las sesiones mezclan proyectos).
+
+### P-009 — Convención de idioma en el código
+- **Recomendada**: **identificadores en inglés, comentarios y docstrings en español** (práctica habitual en tus repos Rust/Java; los documentos ya son todos en español).
+- Alternativa: todo en español (identificadores acentuados no; quedaría mixto).
+
+### P-010 — ¿Confirmar `docs/python.md` como contrato del motor Python?
+La propuesta mueve `cifar10.py` de `src/data/` (tu propuesta original) a `scripts/` por D-011 (ningún motor lee pickle). El resto de módulos sigue tu árbol. Confirmar o revertir.
+
+---
+
+## C. Cuadro de fases y estado
+
+| Fase | Contenido | Estado |
+|---|---|---|
+| 0 | Análisis y especificación (4 contratos + architecture + python + decisions) | **Este entregable** — pendiente de tu revisión |
+| 1 | Validación documental cruzada | Pendiente |
+| 2 | Motor matemático Python + vectores dorados | Bloqueada por P-001 |
+| 3 | Integración del modelo | Pendiente |
+| 4 | Dataset (descarga, derivación, manifiestos) | Pendiente |
+| 5 | Entrenamiento completo | Pendiente |
+| 6 | Inferencia | Pendiente |
+| 7 | Arnés de benchmark + línea base Python | Pendiente |
+| 8 | Documentación final | Pendiente |
+
+## Historial del registro
+
+| Fecha | Cambio |
+|---|---|
+| 2026-11-10 | Creación del registro con D-001…D-017 y P-001…P-010. |
