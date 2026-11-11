@@ -7,11 +7,13 @@
 
 ## 1. Propósito y fuente
 
-**Dataset base**: CIFAR-10 ( versión «python »), fuente oficial:
+**Dataset base**: CIFAR-10, versión **binaria** («for C programs», decisión D-028), fuente oficial:
 
 ```
-https://www.cs.toronto.edu/~kriz/cifar-10-python.tar.gz
+https://www.cs.toronto.edu/~kriz/cifar-10-binary.tar.gz
 ```
+
+(la página oficial redirige a `cave.cs.toronto.edu/kriz/cifar.html`; el enlace de descarga es relativo a esa página).
 
 - 60.000 imágenes RGB 32×32 (50.000 entrenamiento + 10.000 test), 10 clases equilibradas.
 - No se aplica *data augmentation* en la primera versión del proyecto.
@@ -19,33 +21,33 @@ https://www.cs.toronto.edu/~kriz/cifar-10-python.tar.gz
 
 ## 2. Descarga y verificación de integridad
 
-1. Descargar `cifar-10-python.tar.gz` a `shared/dataset/raw/`.
+1. Descargar `cifar-10-binary.tar.gz` a `shared/dataset/raw/`.
 2. Verificar integridad:
-   - **MD5 oficial** (publicado en la página de la fuente): `c58f30108f718f92721af3b95e74349a`.
-   - **SHA-256**: se fijará y registrará en `shared/dataset/CHECKSUMS.sha256` en la primera descarga real (FASE 4). *(No se inventa el valor ahora: el hash exacto se marca como «pendiente de fijar en Fase 4».)*
+   - **MD5 oficial** (publicado en la página de la fuente, leído el 2026-11-11): `c32a1d4ab5d03f1284b67883e8d87530`.
+   - **SHA-256**: se fijará y registrará en `shared/dataset/CHECKSUMS.sha256` en la primera descarga real (FASE 4). *(No se inventa el valor ahora.)*
 3. La descarga la realiza únicamente el script Python `scripts/download_cifar10.py`. Los otros motores **nunca descargan ni leen el archivo original**.
 
 ## 3. Interpretación del formato original
 
-Versión «python» de CIFAR-10: archivo tar.gz con:
+Versión binaria de CIFAR-10: archivo tar.gz con `cifar-10-batches-bin/`:
 
 ```
-cifar-10-batches-py/
-├── data_batch_1 … data_batch_5   (5 × 10.000 imágenes de entrenamiento)
-├── test_batch                    (10.000 imágenes de test)
-└── batches.meta                  (nombres de clases)
+cifar-10-batches-bin/
+├── data_batch_1.bin … data_batch_5.bin   (5 × 10.000 registros, 30.730.000 B cada uno)
+├── test_batch.bin                        (10.000 registros, 30.730.000 B)
+└── batches.meta.txt                      (nombres de clases, una por línea)
 ```
 
-Cada `data_batch_N` es un pickle Python con claves `b'data'` y `b'labels'`:
+Cada fichero es una concatenación de registros de **3073 bytes** sin delimitadores:
 
-- `data`: array uint8 de forma (10000, 3072). **Por imagen**, los 3072 bytes se organizan en 3 planos consecutivos de 1024 bytes:
-  - bytes 0–1023: plano **R** (canal rojo),
-  - bytes 1024–2047: plano **G** (canal verde),
-  - bytes 2048–3071: plano **B** (canal azul),
-  - cada plano es 32×32 en **orden raster** (fila a fila, de arriba a abajo, de izquierda a derecha).
-- `labels`: lista de 10.000 enteros 0–9.
+```
+byte 0        : etiqueta (0–9)
+bytes 1–1024  : plano R (32×32, orden raster)
+bytes 1025–2048: plano G
+bytes 2049–3072: plano B
+```
 
-Es decir, el formato original ya es planar por canal: interpretar una fila como `(3, 32, 32)` es un *reshape* puro, sin reordenar bytes.
+Es decir: la imagen de un registro son sus 3072 bytes finales, ya en layout planar `(3, 32, 32)` row-major; el derivado `shared/dataset/*_images.bin` es copia + reshape, sin reordenar. La herramienta verifica que cada fichero mide exactamente 30.730.000 B y que las etiquetas están en 0–9 antes de usarlo. **No hay pickle ni deserialización de objetos**: cualquier lenguaje podría leer la fuente.
 
 **Clases CIFAR-10** (orden oficial de `batches.meta`):
 
@@ -59,7 +61,7 @@ Es decir, el formato original ya es planar por canal: interpretar una fila como 
 
 **Mapeo binario**: `dog (5) → 1`; el resto `→ 0`.
 
-**Importante para la independencia entre lenguajes**: el pickle solo lo lee la herramienta Python una vez. El resto de motores consumen exclusivamente los artefactos derivados de `shared/dataset/` (formato binario propio, §6), por lo que ninguno necesita soporte de pickle.
+**Independencia entre lenguajes**: el archivo original solo lo lee la herramienta Python, una vez. Los motores consumen exclusivamente los artefactos derivados de `shared/dataset/` (§6), así que ninguno necesita tar.gz, gzip ni descompresión.
 
 ## 4. Distribución objetivo
 
@@ -70,7 +72,7 @@ Es decir, el formato original ya es planar por canal: interpretar una fila como 
 | Test | 1.000 | 1.000 | 2.000 | pool de test (10.000) |
 
 - **Validation sale del pool de entrenamiento**, nunca del pool de test. El pool de test solo aporta el conjunto Test.
-- Las cuotas por clase negativa (9 clases) se reparten de forma estratificada. El resto de la división se asigna en **orden ascendente de id de clase**:
+- Las cuotas por clase negativa (9 clases) se reparten de forma estratificada. El resto de la división se asigna en **orden ascendente de id de clase** entre las 9 negativas (train: 4.000 − 9·444 = 4 → clases 0–3 reciben 445; val: 500 − 9·55 = 5 → clases 0–4 reciben 56; test: 1.000 − 9·111 = 1 → clase 0 recibe 112):
 
 **Cuotas de clases negativas**
 
@@ -80,7 +82,7 @@ Es decir, el formato original ya es planar por canal: interpretar una fila como 
 | 1 automobile | 445 | 56 | 111 |
 | 2 bird | 445 | 56 | 111 |
 | 3 cat | 445 | 56 | 111 |
-| 4 deer | 445 | 56 | 111 |
+| 4 deer | 444 | 56 | 111 |
 | 5 — (dog, positiva) | 4.000 | 500 | 1.000 |
 | 6 frog | 444 | 55 | 111 |
 | 7 horse | 444 | 55 | 111 |
@@ -96,9 +98,9 @@ Decisión aprobada (D-003): **permutación canónica pregenerada** + cuotas por 
 
 ### 5.1 Algoritmo
 
-1. Construir la lista de **índices globales** del pool de entrenamiento: `data_batch_1[0..9999] … data_batch_5[0..9999]` (global 0–49.999), y del pool de test: `test_batch[0..9999]`.
+1. Construir la lista de **índices globales** del pool de entrenamiento: `data_batch_1.bin[0..9999] … data_batch_5.bin[0..9999]` (global 0–49.999), y del pool de test: `test_batch.bin[0..9999]`.
 2. Agrupar por clase CIFAR-10 en **orden ascendente de índice global**.
-3. Para cada clase, barajar su lista con **Fisher-Yates** alimentado por el PRNG **splitmix64** (semillas en §5.2).
+3. Barajar con **Fisher-Yates** alimentado por el PRNG **splitmix64** (semillas en §5.2). **Un único flujo continuo** con `x₀ = 20261110` (decisión D-029): primero el pool de entrenamiento, clases 0→9 (incluida la 5, positiva); después el pool de test, clases 0→9. Cada par (pool, clase) hace una barajada completa de su lista y deja el estado del PRNG listo para la siguiente.
 4. Tomar por clase, en el orden barajado: primero los `n_train(c)` de train, después los `n_val(c)` de validation (pool de entrenamiento); en el pool de test, los primeros `n_test(c)`.
 
 El resultado se vuelca a los manifiestos (§7). Los manifiestos, no este algoritmo, son el artefacto canónico que consumen los motores: el algoritmo existe para auditar y regenerar.
@@ -117,7 +119,7 @@ siguiente():
     devolver z
 ```
 
-Fisher-Yates (sin sesgo):
+Fisher-Yates (el sesgo del módulo es < 2⁻⁵⁰ por extracción: despreciable, y el resultado se congela en manifiestos):
 
 ```
 para i desde n−1 hasta 1:
@@ -129,7 +131,7 @@ para i desde n−1 hasta 1:
 
 | Uso | Semilla inicial `x₀` |
 |---|---|
-| Selección estratificada | `20261110` |
+| Selección estratificada (un solo flujo continuo, §5.1 paso 3) | `20261110` |
 | Permutación de época `e` (e = 1…20) | `20261110 + e` |
 
 Las permutaciones de entrenamiento (§8) también las genera la herramienta y se almacenan como artefactos compartidos.
@@ -240,10 +242,12 @@ shared/permutations/train_epoch_*.perm
 shared/dataset/CHECKSUMS.sha256       (verificación opcional)
 ```
 
-No necesita: el tar.gz original, pickle, la fuente HTTP ni el PRNG.
+No necesita: el tar.gz original, la fuente HTTP ni el PRNG.
 
 ## 13. Historial de cambios
 
 | Versión | Fecha | Cambio |
 |---|---|---|
 | 1.0-draft | 2026-11-10 | Primera redacción completa (FASE 0). |
+| 1.0-draft r1 | 2026-11-11 | FASE 1: tabla de cuotas corregida (deer 444), regla del resto explícita, aclaración del sesgo de Fisher-Yates (ver `docs/validation-fase1.md`). |
+| 1.0-draft r2 | 2026-11-11 | D-028 (CIFAR-10 binario, sin pickle) y D-029 (flujo único del PRNG de selección). |

@@ -79,13 +79,13 @@ suma_ℓ ← 0;  correctos ← 0
 para cada lote de 32 muestras de val (31 lotes de 32 + 1 lote de 8):
     Z ← forward(X)                              # sin backward
     suma_ℓ ← suma_ℓ + Σ_n ℓ(z_n, y_n)          # suma de pérdidas por muestra
-    correctos ← correctos + Σ_n [z_n ≥ 0 == y_n == 1]   # decisión por logit
+    correctos ← correctos + Σ_n [ (z_n ≥ 0) == (y_n == 1) ]   # decisión por logit
 val_loss ← suma_ℓ / 1000                        # media sobre TODO el conjunto
 val_acc  ← correctos / 1000
 ```
 
 - La pérdida de validación es la **media sobre el conjunto completo** (1000 muestras), no la media de medias de lote: el último lote tiene 8 muestras y ponderaría igual que uno de 32 si se promediara por lotes. La suma acumulada se hace en orden de manifiesto, en FP32.
-- La decisión de clasificación usa el **logit** (≥ 0 ⟺ DOG). Es equivalente a σ ≥ 0,5 y evita calcular Sigmoid para las métricas de conteo; la pérdida sí usa σ internamente (dentro de la fórmula estable de BCE, `docs/model.md` §8).
+- La decisión de clasificación usa el **logit** (≥ 0 ⟺ DOG). Es equivalente a σ ≥ 0,5 y evita calcular Sigmoid para las métricas de conteo; la fórmula estable de BCE (`docs/model.md` §8) tampoco necesita σ: opera directamente sobre el logit.
 - Test se evalúa igual (62 lotes de 32 + 1 de 16, media sobre 2000) pero **solo al final del entrenamiento**, no por época.
 
 ## 5. Registro de métricas
@@ -103,17 +103,17 @@ Salida obligatoria por motor: `train_log.jsonl` (JSON Lines UTF-8, una línea po
 
 ## 6. Checkpoints
 
-- Al final de **cada época** se escribe `checkpoint_epoch_{e:03d}.tb` (formato TensorBundle, `docs/architecture.md` §5) con: los 8 tensores de parámetros + metadatos (`engine`, `epoch`, `train_loss`, `val_loss`, `val_accuracy`).
+- Al final de **cada época** se escribe `checkpoint_epoch_{e:03d}.tb` (formato TensorBundle, `docs/architecture.md` §5) con: los 8 tensores de parámetros + los tensores escalares `meta.*` de `architecture.md` §5.5 (`epoch`, `train_loss`, `val_loss`, `val_accuracy`, `contract_version`).
 - Además se copia a `checkpoint_latest.tb` (sobrescrito cada época).
 - Al terminar la época 20: `model_final.tb` (idéntico al checkpoint de la época 20).
-- Tamaño por checkpoint: 78.945 × 4 B ≈ 308 KB; 20 épocas ≈ 6,2 MB.
+- Tamaño por checkpoint: 78.945 × 4 B ≈ 308 KB; 20 épocas ≈ 6,3 MB.
 - **No se selecciona el mejor modelo**: early stopping desactivado y sin criterio de selección. El modelo evaluado en test es siempre el de la época 20. Documentar esta decisión evita comparar motores con criterios de selección distintos.
 
 ## 7. Guardado y carga del modelo
 
-- **Guardar**: los 8 tensores canónicos (`conv1.weight`, `conv1.bias`, `conv2.weight`, `conv2.bias`, `dense1.weight`, `dense1.bias`, `dense2.weight`, `dense2.bias`) en TensorBundle + metadatos JSON embebidos (cabecera).
+- **Guardar**: los 8 tensores canónicos (`conv1.weight`, `conv1.bias`, `conv2.weight`, `conv2.bias`, `dense1.weight`, `dense1.bias`, `dense2.weight`, `dense2.bias`) en TensorBundle (en checkpoints, más los tensores `meta.*`; no hay JSON embebido, `architecture.md` §5.5).
 - **Cargar**: un motor debe poder (a) reanudar conceptualmente desde cualquier checkpoint (el formato lo permite) y (b) cargar `model_final.tb` para inferencia sin ejecutar entrenamiento.
-- **Logits de test**: al final del entrenamiento, cada motor escribe `test_logits.csv` con cabecera `position,logit` (2000 filas, orden de manifiesto, precisión impresa con 9 decimales). Las métricas de calidad completas (precision/recall/F1/AUC/matriz de confusión) las calcula un evaluador común (FASE 7) a partir de este fichero y `test_labels.bin`, garantizando que el cálculo de métricas es idéntico para todos los motores y no forma parte del código medido.
+- **Logits de test**: al final del entrenamiento, cada motor escribe `test_logits.csv` con cabecera `position,logit` (2000 filas, orden de manifiesto, formato `%.9g`: 9 cifras significativas, ida y vuelta exacta de un FP32). Las métricas de calidad completas (precision/recall/F1/AUC/matriz de confusión) las calcula un evaluador común (FASE 7) a partir de este fichero y `test_labels.bin`, garantizando que el cálculo de métricas es idéntico para todos los motores y no forma parte del código medido.
 
 ## 8. Reproducibilidad
 
@@ -128,13 +128,13 @@ El entrenamiento es un proceso caótico: diferencias de redondeo del orden de 1e
 
 | Nivel | Qué se compara | Criterio |
 |---|---|---|
-| T1 — Operación | Salidas y gradientes de cada operación sobre vectores dorados (`shared/test_vectors/`) | Tolerancias de `docs/architecture.md` §12 (rel 1e-5) |
+| T1 — Operación | Salidas y gradientes de cada operación sobre vectores dorados (`shared/test_vectors/`) | Tolerancias de `docs/architecture.md` §12 (1e-5 en salidas, 1e-4 en gradientes) |
 | T2 — Un paso de entrenamiento | Tras el lote 1 de la época 1 (lote dorado compartido): pérdida, gradientes y pesos resultantes contra los valores de referencia | rel 1e-4 |
 | T3 — Entrenamiento completo | `val_accuracy` final dentro de ±0,03 y `val_loss` final dentro de ±10 % respecto a la referencia Python | Banda provisional (FASE 7) |
 
 - T1 y T2 son **obligatorios** para declarar un motor matemáticamente equivalente; si fallan, localizan la capa o el orden de operaciones divergente.
 - T3 es una banda estadística: si un motor la supera, el protocolo exige investigar (revisar T1/T2, orden de acumulación, FMA) **antes** de cuestionar la banda. El objetivo es entender la divergencia, no esconderla.
-- La banda T3 se validará y ajustará con los dos primeros motores reales (Python + el segundo que llegue) y quedá fijada por escrito en `docs/benchmark.md`.
+- La banda T3 se validará y ajustará con los dos primeros motores reales (Python + el segundo que llegue) y quedará fijada por escrito en este §9.
 
 ## 10. Criterios de aceptación de la FASE 5
 
@@ -150,3 +150,4 @@ El entrenamiento es un proceso caótico: diferencias de redondeo del orden de 1e
 | Versión | Fecha | Cambio |
 |---|---|---|
 | 1.0-draft | 2026-11-10 | Primera redacción completa (FASE 0). |
+| 1.0-draft r1 | 2026-11-11 | FASE 1: notación de la validación, σ innecesaria en BCE, metadatos sin JSON, tolerancia T1, formato de logits, erratas (ver `docs/validation-fase1.md`). |

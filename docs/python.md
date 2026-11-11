@@ -15,11 +15,11 @@ Motor de referencia y primer competidor del benchmark. Restricciones:
 - **Matplotlib**: solo en herramientas de análisis fuera del motor medido (no forma parte del binario/código cronometrado).
 - **Sin azar en runtime**: el motor no importa `numpy.random` ni `random`. Todos los artefactos aleatorios provienen de `shared/`.
 - **FP32 estricto**: `np.float32` en todo el grafo; sin conversiones a float64 en entrenamiento (las pruebas de gradientes usan float64 internamente como herramienta, no el motor).
-- El motor **no lee pickle, no descarga datos, no importa de `scripts/`**: consume únicamente `shared/` (independencia, `docs/architecture.md` §3).
+- El motor **no descarga datos, no lee la fuente original, no importa de `scripts/`**: consume únicamente `shared/` (independencia, `docs/architecture.md` §3).
 
 ## 2. Organización de módulos
 
-Basada en la propuesta original, con un ajuste justificado: `cifar10.py` se muda a `scripts/prepare_dataset.py`. Razón: leer el pickle original es una tarea de la **herramienta compartida**, no del motor (decisión D-011): ningún motor futuro leerá pickle, y el motor Python no puede ser una excepción o la comparación de dependencias y caminos de datos quedaría falseada.
+Basada en la propuesta original, con un ajuste justificado: `cifar10.py` se muda a `scripts/prepare_dataset.py`. Razón: leer la fuente original es una tarea de la **herramienta compartida**, no del motor (decisión D-011): ningún motor leerá la fuente original, y el motor Python no puede ser una excepción o la comparación de dependencias y caminos de datos quedaría falseada.
 
 ```text
 implementations/python/
@@ -47,7 +47,7 @@ implementations/python/
 │   │
 │   ├── data/
 │   │   ├── preprocessing.py    # uint8 → float32 /255.0 (bit-exacto)
-│   │   └── dataloader.py       # lectura memmap de .bin, .perm, manifiestos; composición de lotes
+│   │   └── dataloader.py       # lectura COMPLETA a RAM de .bin/.perm (D-032); composición de lotes
 │   │
 │   ├── inference/
 │   │   └── predictor.py       # carga de modelo, predict / predict_batch → JSON
@@ -84,13 +84,13 @@ implementations/python/
 | `training/trainer.py` | Ejecuta `training.md` §3 exacto; escribe `train_log.jsonl`, `final_metrics.json`, `test_logits.csv` | `Trainer.train()` |
 | `training/checkpoint.py` | `checkpoint_epoch_NNN.tb` + `meta.*` escalares | — |
 | `data/preprocessing.py` | `to_float32(u8) → np.float32 /255.0` | — |
-| `data/dataloader.py` | `Dataset` memmap de `{split}_images.bin`/`_labels.bin`; `batch(posiciones)`; `EpochPermutations(e)` | — |
+| `data/dataloader.py` | `Dataset` con `{split}_images.bin`/`_labels.bin` leídos enteros a RAM antes de cronometrar (`np.fromfile`, sin memmap); `batch(posiciones)`; `EpochPermutations(e)` | — |
 | `inference/predictor.py` | `Predictor.load(modelo)`, `predict(img3072)` → dict JSON | contrato §8 |
 
 ## 4. Estrategia interna documentada (D-001 aplicado a Python)
 
 - **Conv2D**: **im2col + `np.matmul`** (BLAS). El motor documenta esta estrategia como su elección. Forward: despliegue de parches (N·C·K·K, H_out·W_out) → GEMM contra pesos aplanados. Backward: `dW` como GEMM sobre im2col, `dX` por *col2im* (acumulación dispersa).
-- **MaxPool2D**: reshape a `(N, C, H//2, 2, W//2, 2)` y `np.max`/`np.argmax` sobre los ejes de ventana; `argmax` de NumPy devuelve el **primer máximo en orden C**, que coincide con la regla de empates del contrato (`model.md` §4.3).
+- **MaxPool2D**: reshape a `(N, C, H//2, 2, W//2, 2)` y `np.max`/`np.argmax` sobre los ejes de ventana; `argmax` de NumPy devuelve el **primer máximo en orden C**, que coincide con la regla de empates del contrato (`model.md` §4.3) **siempre que** los ejes de ventana queden contiguos y en orden (r, s): hay que recortar a `[:12, :12]` con entrada 13×13 y transponer a `(N, C, H//2, W//2, 2, 2)` antes de aplanar la ventana a 4.
 - **Dense**: `Y = X @ W.T + B` (W en forma canónica `(O, I)`).
 - **Sumas/reducciones**: `np.sum`/`np.mean` (suma por pares de NumPy, determinista en la misma versión).
 - Alternativa descartada: bucles directos por elemento (prohibitivamente lento en Python; la decisión de contrato permite estrategia libre por motor, D-001).
@@ -139,3 +139,5 @@ El CLI reproduce exactamente el contrato de `architecture.md` §8 (`tests`/`trai
 | Versión | Fecha | Cambio |
 |---|---|---|
 | 1.0-draft | 2026-11-10 | Primera redacción (FASE 0). |
+| 1.0-draft r1 | 2026-11-11 | FASE 1: precisión sobre el aplanado de ventana de MaxPool (ver `docs/validation-fase1.md`). |
+| 1.0-draft r2 | 2026-11-11 | Sin memmap (D-032): datos en RAM antes del cronómetro. |

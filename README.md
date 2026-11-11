@@ -2,7 +2,7 @@
 
 Clasificador neuronal de imágenes (**¿perro o no perro?**) implementado desde cero en **seis lenguajes** para comparar capacidades, rendimiento y complejidad de cada uno al construir motores de IA.
 
-**Estado**: FASE 0 — especificación contractual terminada, pendiente de aprobación. Sin código todavía.
+**Estado**: FASE 1 hecha (validación documental, 2026-11-11). Pendiente tu OK para la FASE 2. Sin código del motor todavía.
 
 ## Filosofía
 
@@ -34,7 +34,7 @@ tests/             Pruebas transversales del repositorio
 | [docs/benchmark.md](docs/benchmark.md) | Cinco categorías (rendimiento, recursos, calidad, complejidad, portabilidad), procedimiento y formatos |
 | [docs/architecture.md](docs/architecture.md) | Contratos entre los seis motores: TensorBundle v1, CLI, vectores de prueba, tolerancias |
 | [docs/python.md](docs/python.md) | Propuesta del motor Python: módulos, estrategia im2col+GEMM, pruebas |
-| [docs/decisions.md](docs/decisions.md) | Decisiones D-001…D-017 y pendientes P-001…P-010 |
+| [docs/decisions.md](docs/decisions.md) | Decisiones D-001…D-027 y pendientes P-011…P-015 |
 
 ## Resumen técnico
 
@@ -47,9 +47,9 @@ tests/             Pruebas transversales del repositorio
 
 | Fase | Contenido | Estado |
 |---|---|---|
-| 0 | Especificación contractual | **Terminada (borrador), en revisión** |
-| 1 | Validación documental cruzada | Pendiente |
-| 2 | Motor matemático Python + vectores dorados | Bloqueada por P-001 |
+| 0 | Especificación contractual | Terminada |
+| 1 | Validación documental cruzada | **Hecha** (`docs/validation-fase1.md`; 5 decisiones nuevas P-011…P-015) |
+| 2 | Motor matemático Python + vectores dorados | Desbloqueada |
 | 3 | Integración del modelo | Pendiente |
 | 4 | Dataset | Pendiente |
 | 5 | Entrenamiento | Pendiente |

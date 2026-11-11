@@ -174,6 +174,8 @@ Y[n, c, i, j] = max( X[n,c,2i,  2j],   X[n,c,2i,  2j+1],
 dX[n,c,2i+r, 2j+s] += dY[n,c,i,j]   sii (r,s) = argmax del bloque
 ```
 
+Las posiciones de `dX` que no son máximo de ningún bloque (incluidas la fila y columna descartadas con dimensión impar) valen **0**: `dX` se inicializa a cero.
+
 **Desempate (ties)**: si hay varios máximos iguales dentro del bloque, el gradiente va **solo al primero en orden raster** (r primero, s después; es decir, el máximo con menor `2i+r` y, en caso de igualdad, menor `2j+s`). Decisión D-008. Alternativa descartada: reparto uniforme (complica la equivalencia entre motores sin beneficio).
 
 ### 4.4 Flatten
@@ -248,7 +250,7 @@ Dado un batch `X ∈ (N, 3, 32, 32)`:
 | Tensor | Forma | Necesario para |
 |---|---|---|
 | X (entrada) | (N,3,32,32) | dW/dB de Conv2D_1 |
-| A1 | (N,16,30,30) | ReLU_1, dX de Conv2D_1 |
+| A1 | (N,16,30,30) | ReLU_1 (máscara del backward) |
 | A2 | (N,16,30,30) | MaxPool_1 (posiciones de máximo o entrada) |
 | A3 | (N,16,15,15) | Conv2D_2 |
 | A4 | (N,32,13,13) | ReLU_2 |
@@ -376,6 +378,8 @@ criterio: error_rel < 1e-6  para dense/sigmoid/BCE/flatten
 
 El gradient check usa FP64 **solo como herramienta de prueba**; el motor que se mide sigue siendo FP32 (§2.3).
 
+**Cruces de «kink»**: ReLU y MaxPool no son diferenciables en los empates/ceros; si una perturbación `±h` cruza uno, la diferencia finita falla sin que haya error de implementación. Por eso los casos unitarios usan entradas con separación > 2h y el gradcheck del modelo completo usa lotes pequeños; si un parámetro falla, se repite con otro lote de prueba y se documenta el cruce, no se relaja la tolerancia.
+
 ---
 
 ## 11. Vectores de prueba (golden vectors)
@@ -389,3 +393,4 @@ Cada operación y el modelo completo tendrán casos deterministas con entrada, p
 | Versión | Fecha | Cambio |
 |---|---|---|
 | 1.0-draft | 2026-11-10 | Primera redacción completa (FASE 0). |
+| 1.0-draft r1 | 2026-11-11 | FASE 1: A1 sin dX de Conv2D_1, dX=0 fuera de máximos, nota sobre kinks en gradcheck (ver `docs/validation-fase1.md`). |

@@ -36,7 +36,7 @@ ImageAI-Benchmark/
 │   ├── java/                 # futuro
 │   └── go/                   # futuro
 │
-├── shared/                   # Artefactos canónicos intercambiables (gitignore para binarios)
+├── shared/                   # Artefactos canónicos intercambiables (binarios grandes en .gitignore, D-017)
 │   ├── dataset/              # *.bin, manifests/, CHECKSUMS.sha256
 │   ├── initial_weights/      # initial_weights.tb
 │   ├── permutations/         # train_epoch_NNN.perm
@@ -56,7 +56,7 @@ ImageAI-Benchmark/
 
 Reglas:
 
-- `shared/` es la **única** vía de intercambio entre motores. Contiene artefactos binarios versionados por checksums; los binarios no se suben a git (regla de `dataset.md` §11).
+- `shared/` es la **única** vía de intercambio entre motores. Contiene artefactos binarios; los grandes y regenerables (`dataset/*.bin`, `*.perm`) no se suben a git (`dataset.md` §11) y los pesos iniciales y vectores dorados sí (D-017).
 - Cada motor escribe sus salidas propias en `implementations/<lenguaje>/runs/` (gitignored): checkpoints, `train_log.jsonl`, `test_logits.csv`. El arnés los recoge hacia `benchmark/results/`.
 - Los motores futuros se añaden creando su carpeta: nada de la estructura actual necesita reorganizarse.
 
@@ -65,7 +65,7 @@ Reglas:
 | Rol | Código | ¿Se mide? | Lenguaje | Reglas |
 |---|---|---|---|---|
 | **Herramienta compartida** | `scripts/` | No | Python | Puede usar cualquier biblioteca Python razonable. Genera y regenera artefactos. Es la única pieza que toca la fuente original de datos |
-| **Motor** | `implementations/<lenguaje>/` | Sí | Uno por lenguaje | Implementa el contrato completo con las restricciones de `docs/python.md` (o equivalente por lenguaje). No lee pickle, no descarga, no genera azar |
+| **Motor** | `implementations/<lenguaje>/` | Sí | Uno por lenguaje | Implementa el contrato completo con las restricciones de `docs/python.md` (o equivalente por lenguaje). No descarga, no lee la fuente original, no genera azar |
 | **Arnés de medición** | `benchmark/harness/` | No (mide) | Python | Lanza motores en subproceso con entorno controlado (`benchmark.md` §3). Mide desde fuera para que la metodología sea idéntica para todos |
 | **Evaluador de calidad** | `scripts/evaluate.py` | No | Python | Calcula métricas de calidad desde `test_logits.csv` de cada motor, con el mismo código para todos |
 
@@ -138,12 +138,12 @@ Formato binario para **cualquier colección de tensores con nombre**. Es el form
 |---|---|---|
 | +0 | 32 | `name`: ASCII con terminador `\0` y relleno (máx. 31 caracteres) |
 | +32 | 2 | `dtype`: uint16 (tabla siguiente) |
-| +34 | 1 | `ndim`: uint8 ∈ [1, 8] |
+| +34 | 1 | `ndim`: uint8 ∈ [1, 4] |
 | +35 | 1 | reservado = 0 |
 | +36 | 4 | reservado = 0 |
 | +40 | 8 | `data_offset`: uint64 |
 | +48 | 8 | `n_elements`: uint64 (debe coincidir con el producto de `shape`) |
-| +56 | 16 | `shape`: ndim × uint32; las posiciones ≥ ndim quedan a 0 |
+| +56 | 16 | `shape`: ndim × uint32 (máx. 4 dimensiones = 16 B); las posiciones ≥ ndim quedan a 0 |
 
 ### 5.3 Códigos de dtype
 
@@ -194,12 +194,29 @@ Los ficheros `.perm` y `.bin` de dataset **no** usan TensorBundle deliberadament
 | Elemento | Valor |
 |---|---|
 | Semilla maestra del proyecto | `20261110` |
-| Selección estratificada del dataset | splitmix64 con `x₀ = 20261110` |
+| Selección estratificada del dataset | splitmix64, un solo flujo continuo, `x₀ = 20261110` (`dataset.md` §5.1) |
 | Permutación de época `e` (1–20) | splitmix64 con `x₀ = 20261110 + e` |
-| Pesos iniciales | Ver decisión D-006 (pendiente el generador exacto) |
+| Pesos iniciales | splitmix64 con `x₀ = 20261110 + 1000` + Box-Muller (D-018, §7.1) |
 | Azar en runtime de los motores | **Ninguno** |
 
 El PRNG (splitmix64, pseudocódigo en `dataset.md` §5.2) solo existe dentro de `scripts/`. Ningún motor lo implementa: consume artefactos. Esto elimina la clase entera de bugs de divergencia por generadores distintos.
+
+### 7.1 Generación de los pesos iniciales (D-018)
+
+Un único flujo splitmix64 (`x₀ = 20261110 + 1000`, distinto de la selección y de las épocas 1–20) llena los tensores en este orden: `conv1.weight`, `conv2.weight`, `dense1.weight`, `dense2.weight`, cada uno en orden row-major. Los bias son 0 y no consumen flujo.
+
+Cada par de elementos consecutivos consume **dos** salidas `a`, `b` del PRNG:
+
+```
+u1 = ((a >> 11) + 1) · 2⁻⁵³      # ∈ (0, 1], evita log(0)
+u2 =  (b >> 11)      · 2⁻⁵³      # ∈ [0, 1)
+r  = sqrt(−2 · ln u1)
+z0 = r · cos(2π·u2),  z1 = r · sin(2π·u2)
+elemento = float32(std · z)        # std de model.md §7, en FP64 antes del cast
+```
+
+Todos los tensores tienen un número par de elementos (432, 4.608, 73.728, 64), así que no sobra ningún `z`. El cálculo usa FP64 y `math.cos/log` de la herramienta Python; como el resultado se congela en `initial_weights.tb`, el fichero —no el algoritmo— es el contrato (una regeneración puede diferir en el último ulp según la libm).
+
 
 ## 8. Contrato de línea de comandos de cada motor
 
@@ -233,8 +250,8 @@ Definiciones exactas: `prediction` = "DOG" si `logit ≥ 0` (umbral 0,5 en proba
         CIFAR-10 (URL oficial)
                │  scripts/download_cifar10.py (verifica MD5/SHA-256)
                ▼
-        shared/dataset/raw/cifar-10-python.tar.gz
-               │  scripts/prepare_dataset.py  (único lector de pickle)
+        shared/dataset/raw/cifar-10-binary.tar.gz
+               │  scripts/prepare_dataset.py  (único lector de la fuente original)
                ▼
    shared/dataset/*.bin + manifests/ + permutations/ + CHECKSUMS.sha256
                │  scripts/generate_artifacts.py (splitmix64, He/Xavier)
@@ -353,3 +370,5 @@ Justificación: epsilon de FP32 ≈ 1,19·10⁻⁷; una acumulación de ~10³–
 | Versión | Fecha | Cambio |
 |---|---|---|
 | 1.0-draft | 2026-11-10 | Primera redacción completa (FASE 0). |
+| 1.0-draft r1 | 2026-11-11 | FASE 1: forma del índice TensorBundle (ndim ≤ 4), política git coherente con D-017, generador de pesos (D-018) (ver `docs/validation-fase1.md`). |
+| 1.0-draft r2 | 2026-11-11 | CIFAR-10 binario (D-028) y flujo de selección (D-029) reflejados. |

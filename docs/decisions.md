@@ -29,7 +29,7 @@
 
 ### D-006 — Artefactos de referencia generados una vez por la herramienta Python
 **Decisión**: pesos iniciales, permutaciones y vectores de prueba se generan una única vez con semillas registradas (maestra `20261110`) y viven en `shared/` en formatos independientes del lenguaje. Ningún motor genera aleatoriedad.
-**Detalle pendiente**: generador exacto de normales para He/Xavier → **P-001**.
+**Detalle**: generador de normales para He/Xavier → D-018.
 
 ### D-007 — Permutaciones de época pregeneradas como ficheros
 **Decisión**: 20 ficheros `.perm` (uint32 LE) en `shared/permutations/`. El orden de presentación de muestras es idéntico en los seis motores sin implementar PRNG.
@@ -65,63 +65,43 @@
 ### D-017 — Política de git de artefactos
 **Decisión**: se suben a git los artefactos contrato **congelados** (pesos iniciales y vectores de prueba, ~4 MB con checksums) para que el contrato no dependa de regeneraciones; quedan fuera los binarios grandes regenerables de forma bit-exacta por PRNG propio (dataset `*.bin`, `*.perm`, tar.gz) y las salidas de motores (`runs/`).
 
+### D-018 — Generador de normales: Box-Muller sobre splitmix64 *(antes P-001; aprobada 2026-11-11)*
+Box-Muller clásico, un solo flujo (`x₀ = 20261110 + 1000`), orden `conv1`, `conv2`, `dense1`, `dense2`. Detalle exacto (conversión a u1/u2, FP64 y cast) en `architecture.md` §7.1. Desbloquea la FASE 2.
+
+### D-019 — Validación por lotes de 32 con último lote parcial *(antes P-002; aprobada)*
+### D-020 — Banda T3 provisional: `val_accuracy` ±0,03 y `val_loss` ±10 % *(antes P-003; aprobada)*
+Se revisará con los dos primeros motores reales; antes de tocar la banda se investigan T1/T2 (`training.md` §9).
+### D-021 — Benchmark: 5 ejecuciones + 1 época de calentamiento + 1000 latencias *(antes P-004; aprobada)*
+Con regla anti-ruido (std relativa > 5 % → repetir sesión). La semántica exacta del calentamiento queda en P-014.
+### D-022 — Motor Rust: implementación nueva, sin reutilizar `rust-ai-core` *(antes P-005; aprobada)*
+### D-023 — BLAS de NumPy: registrar, no restringir *(antes P-006; aprobada)*
+### D-024 — Repositorio local, sin remoto *(antes P-007; **por defecto**, sin recomendación explícita)*
+Reversible en cualquier momento; si quieres remoto (GitHub privado/público) dilo y se añade.
+### D-025 — Tiempo de desarrollo: registro manual por sesión en el informe de cada motor *(antes P-008; aprobada)*
+### D-026 — Código: identificadores en inglés, comentarios y docstrings en español *(antes P-009; aprobada)*
+### D-027 — `cifar10.py` pasa a `scripts/` (ningún motor lee pickle) *(antes P-010; aprobada)*
+
+### D-028 — CIFAR-10 en formato binario *(antes P-011; aprobada 2026-11-11)*
+`cifar-10-binary.tar.gz`, MD5 `c32a1d4ab5d03f1284b67883e8d87530`. Sin pickle en ningún punto del proyecto. SHA-256 pendiente de fijar en la descarga (FASE 4).
+### D-029 — Selección estratificada con un único flujo splitmix64 *(antes P-012; aprobada)*
+Orden: pool de entrenamiento clases 0→9, luego pool de test clases 0→9 (`dataset.md` §5.1).
+### D-030 — Atípicos por MAD (3·1,4826·MAD) o 10 % de desviación *(antes P-013; aprobada)*
+### D-031 — Calentamiento en el mismo proceso con recarga de pesos iniciales *(antes P-014; aprobada)*
+### D-032 — Datos enteros a RAM antes de cronometrar; `data_load_s` aparte *(antes P-015; aprobada)*
+
 ---
 
 ## B. Decisiones pendientes de aprobación
 
-> **Necesito que revises estas antes de pasar a FASE 2.** Cada una tiene recomendación y alternativa.
-
-### P-001 — Generador de normales para los pesos iniciales *(bloquea FASE 2)*
-He/Xavier muestrean de N(0, std²). Hay que fijar cómo se transforman los uniformes de splitmix64 en normales:
-- **Recomendada**: **Box-Muller clásico** — pares `(u1, u2)` → `r·cos(2πu1), r·sin(2πu2)` con `r = sqrt(−2 ln u1)`. Número de extracciones fijo (sin rechazos), flujo documentable, ~15 líneas.
-- Alternativa 1: **Ziggurat** — más rápido, pero tablas complejas y riesgo de errores entre implementaciones (y la velocidad aquí es irrelevante: se ejecuta una vez).
-- Alternativa 2: **CDF inversa** — simple, pero depende de la implementación de `erfinv` del lenguaje.
-**Nota**: solo lo ejecuta `scripts/` (los motores cargan el fichero), así que el criterio es auditabilidad, no velocidad. Orden de llenado propuesto: `conv1.weight`, `conv2.weight`, `dense1.weight`, `dense2.weight` (secuencial, un solo flujo).
-
-### P-002 — Validación por lotes de 32 con último lote parcial
-1000/32 = 31 lotes de 32 + 1 de 8. Alternativa: validar en un solo lote de 1000 (pico de RAM mayor: ~50 MB de activaciones frente a ~4 MB). **Recomendada**: lotes de 32, uniforme con entrenamiento y con la estructura por lotes del benchmark. Aceptación implícita si no objetas al leer `training.md` §4.
-
-### P-003 — Banda T3 de equivalencia estadística (provisional)
-`val_accuracy` ±0,03 y `val_loss` ±10 % tras 20 épocas. Es una **estimación**: no hay datos reales todavía. Propuesta: aprobarla como provisional y revisarla con los dos primeros motores (protocolo ya definido en `training.md` §9: si se supera, se investiga T1/T2 antes de tocar la banda).
-
-### P-004 — Número de repeticiones del benchmark
-5 ejecuciones de entrenamiento + calentamiento de 1 época + 1000 medidas de latencia. **Recomendada**: aprobar como configuración inicial con la regla anti-ruido ya definida (si std relativa > 5 % → repetir sesión). Una sesión completa por motor puede tardar horas; 5 repite el equilibrio entre estadística y coste.
-
-### P-005 — Relación con `rust-ai-core`
-El proyecto existente `~/Proyectos/rust-ai-core` (tensores, autograd desde cero) solapa con el futuro motor Rust de ImageAI-Benchmark.
-- **Recomendada**: **implementación nueva** para ImageAI-Benchmark: reutilizar crates rompería la métrica de LOC/complejidad (compararía ecosistemas distintos) y arrastraría autograd, que aquí está prohibido (backprop manual).
-- Alternativa: reutilizar `ai-tensor` solo como utilidad de I/O… también contamina la comparación.
-**Nota**: el conocimiento matemático sí se reutiliza (está en la bóveda y en la memoria del proyecto).
-
-### P-006 — Backend BLAS de NumPy: registrar vs. restringir
-La velocidad de `np.matmul` depende del BLAS (OpenBLAS/MKL/…).
-- **Recomendada**: **registrar** (`np.show_config()` en `meta`) y no restringir: el backend BLAS es parte legítima del stack de Python que se estudia; restringirlo falsearía el motor.
-- Alternativa: fijar OpenBLAS explícito para reproducibilidad externa.
-
-### P-007 — Remoto del repositorio
-¿Repositorio local sin remoto, o remoto GitHub (privado/público)? El índice de repositorios de la bóveda sugiere registrar el que se elija. Sin respuesta, queda **local** (con commits por fases, como el resto de proyectos sin remoto).
-
-### P-008 — Registro del tiempo de desarrollo (categoría complejidad)
-Para la métrica «tiempo de desarrollo» del benchmark:
-- **Recomendada**: registro manual por sesión en una tabla del informe de cada motor (horas por fase, con fecha), sin herramientas automáticas.
-- Alternativa: automatizarlo desde las sesiones de la bóveda (más ruido que señal: las sesiones mezclan proyectos).
-
-### P-009 — Convención de idioma en el código
-- **Recomendada**: **identificadores en inglés, comentarios y docstrings en español** (práctica habitual en tus repos Rust/Java; los documentos ya son todos en español).
-- Alternativa: todo en español (identificadores acentuados no; quedaría mixto).
-
-### P-010 — ¿Confirmar `docs/python.md` como contrato del motor Python?
-La propuesta mueve `cifar10.py` de `src/data/` (tu propuesta original) a `scripts/` por D-011 (ningún motor lee pickle). El resto de módulos sigue tu árbol. Confirmar o revertir.
-
----
+Ninguna. (P-001…P-015 resueltas; ver §A.)
 
 ## C. Cuadro de fases y estado
 
 | Fase | Contenido | Estado |
 |---|---|---|
-| 0 | Análisis y especificación (4 contratos + architecture + python + decisions) | **Este entregable** — pendiente de tu revisión |
-| 1 | Validación documental cruzada | Pendiente |
-| 2 | Motor matemático Python + vectores dorados | Bloqueada por P-001 |
+| 0 | Análisis y especificación (4 contratos + architecture + python + decisions) | Hecha (2026-11-10) |
+| 1 | Validación documental cruzada | **Hecha 2026-11-11** |
+| 2 | Motor matemático Python + vectores dorados | **En curso** (2026-11-11) |
 | 3 | Integración del modelo | Pendiente |
 | 4 | Dataset (descarga, derivación, manifiestos) | Pendiente |
 | 5 | Entrenamiento completo | Pendiente |
@@ -134,3 +114,5 @@ La propuesta mueve `cifar10.py` de `src/data/` (tu propuesta original) a `script
 | Fecha | Cambio |
 |---|---|
 | 2026-11-10 | Creación del registro con D-001…D-017 y P-001…P-010. |
+| 2026-11-11 | P-001…P-010 aprobadas (P-007 por defecto) → D-018…D-027. FASE 1: P-011…P-015 nuevos. |
+| 2026-11-11 | P-011…P-015 aprobadas → D-028…D-032. Sin pendientes. |

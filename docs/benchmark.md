@@ -56,17 +56,18 @@ El arnés (`benchmark/harness/`, FASE 7) es **externo a los motores**: lanza cad
 | Medición | Procedimiento | Repeticiones |
 |---|---|---|
 | Entrenamiento completo | 20 épocas + validaciones; se cronometra época a época y lote a lote | **5 ejecuciones** + calentamiento |
-| Calentamiento | 1 época de entrenamiento descartada antes de cada ejecución medida (imports perezosos, caché de páginas, rampa de frecuencia) | Antes de cada ejecución |
+| Calentamiento | Dentro del mismo proceso: 1 época de entrenamiento sobre una **copia** de los pesos y, después, **recarga de `initial_weights.tb`**; las 20 épocas medidas parten así del estado inicial contractual (D-031). El calentamiento no aparece en `train_log.jsonl` | Antes de cada ejecución |
 | Latencia de inferencia | Cargar `model_final.tb`, clasificar una imagen (lote = 1), repetido | 100 llamadas de calentamiento + **1000 medidas** |
 | Throughput de inferencia | Lote de 32 imágenes ya cargadas, forward repetido | 100 calentamiento + **100 medidas** |
 
-- **Valores atípicos**: no se eliminan en silencio. Se reportan las 5 ejecuciones completas; la métrica central es la **mediana**; se calculan también media, desviación estándar y rango. Si una ejecución se desvía más de 2σ de la mediana, se marca `outlier: true` en el JSON y se documenta la causa sospechada (p. ej., interrupción del sistema). La comparación entre motores usa la mediana.
+- **Valores atípicos**: no se eliminan en silencio. Se reportan las 5 ejecuciones completas; la métrica central es la **mediana**; se calculan también media, desviación estándar y rango. Una ejecución es **atípica** si `|x − mediana| > 3 · 1,4826 · MAD` o se desvía más de un 10 % de la mediana (D-030; la regla «2σ» era inaplicable con n = 5: |z| máx. = 1,79); se marca `outlier: true` en el JSON y se documenta la causa sospechada (p. ej., interrupción del sistema), sin eliminarla. La comparación entre motores usa la mediana.
 - Si la desviación estándar relativa del tiempo total supera el 5 %, se repite la sesión completa con 5 ejecuciones nuevas y se reportan ambas (regla anti-ruido).
 
 ### 5.3 Definición exacta de cada métrica temporal
 
 | Métrica | Definición |
 |---|---|
+| `data_load_s` | Lectura de los seis ficheros `*_images.bin`/`*_labels.bin` y de las 20 permutaciones a RAM, **antes** de cronometrar el entrenamiento (D-032); se reporta aparte y no entra en `train_total_s` |
 | `train_total_s` | Tiempo total de las 20 épocas (bucles de entrenamiento), **excluyendo** validación, checkpoints y logs en disco |
 | `epoch_time_s` | Una época completa (250 lotes) |
 | `batch_time_s` | Un lote: cargar índices + normalizar + forward + backward + actualización. Incluye la lectura del lote (uint8→FP32/255); **no** incluye escritura de logs |
@@ -139,7 +140,7 @@ Una implementación es **válida para el benchmark** si:
 3. Determinismo: dos ejecuciones producen el mismo SHA-256 en `model_final.tb`.
 4. Completa las 5 ejecuciones de rendimiento sin errores ni NaN.
 5. Sus artefactos de salida (`train_log.jsonl`, `test_logits.csv`, checkpoints) son conformes al formato de `docs/training.md` §5–7.
-6. Cumple T3 (banda estadística de §8 de `docs/training.md`) o tiene una investigación documentada de la divergencia.
+6. Cumple T3 (banda estadística de §9 de `docs/training.md`) o tiene una investigación documentada de la divergencia.
 
 Si un motor falla 1–2, es **matemáticamente inválido** y no se publica su rendimiento. Si falla 3, es **no determinista** y se investiga antes de medir.
 
@@ -176,7 +177,7 @@ Esquema `summary.json` (un fichero por lenguaje, agregado por el arnés):
   },
   "resources": {
     "ram_max_mb": 0.0, "ram_mean_mb": 0.0, "cpu_mean_pct": 0.0, "cpu_max_pct": 0.0,
-    "executable_size_mb": 0.0, "model_size_mb": 0.3158
+    "executable_size_mb": 0.0, "model_size_mb": 0.3167
   },
   "quality": {
     "accuracy": 0.0, "precision": 0.0, "recall": 0.0, "f1": 0.0, "auc_roc": 0.0,
@@ -218,3 +219,5 @@ Categoría secundaria futura (no parte de la comparación inicial): mismas métr
 | Versión | Fecha | Cambio |
 |---|---|---|
 | 1.0-draft | 2026-11-10 | Primera redacción completa (FASE 0). |
+| 1.0-draft r1 | 2026-11-11 | FASE 1: referencia cruzada a T3 y tamaño de modelo de ejemplo (13 tensores, 316.748 B) (ver `docs/validation-fase1.md`). |
+| 1.0-draft r2 | 2026-11-11 | Regla de atípicos MAD (D-030), semántica del calentamiento (D-031), `data_load_s` (D-032). |
