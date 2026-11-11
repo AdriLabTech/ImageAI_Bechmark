@@ -197,6 +197,7 @@ Los ficheros `.perm` y `.bin` de dataset **no** usan TensorBundle deliberadament
 | Selección estratificada del dataset | splitmix64, un solo flujo continuo, `x₀ = 20261110` (`dataset.md` §5.1) |
 | Permutación de época `e` (1–20) | splitmix64 con `x₀ = 20261110 + e` |
 | Pesos iniciales | splitmix64 con `x₀ = 20261110 + 1000` + Box-Muller (D-018, §7.1) |
+| Vectores dorados, caso `k`-ésimo en orden de generación | splitmix64 con `x₀ = 20261110 + 2000 + k` (`scripts/generate_artifacts.py`) |
 | Azar en runtime de los motores | **Ninguno** |
 
 El PRNG (splitmix64, pseudocódigo en `dataset.md` §5.2) solo existe dentro de `scripts/`. Ningún motor lo implementa: consume artefactos. Esto elimina la clase entera de bugs de divergencia por generadores distintos.
@@ -324,6 +325,8 @@ Casos obligatorios por operación (mínimos; se añadirán si se detectan diverg
 
 Los vectores dorados son, por tanto, artefactos auditables generados por código verificado; no «la salida de Python» a ciegas.
 
+**Precisión de referencia (D-033)**: las salidas y gradientes esperados se calculan en **FP64** con las operaciones del motor sobre las entradas FP32 exactas, y se almacenan como FP32 (error ≤ 0,5 ulp respecto al valor exacto). Así el motor FP32 se prueba contra una referencia más precisa que él mismo, no contra su propio redondeo. Entradas y parámetros de los casos son FP32 puros.
+
 ## 11. Versionado de contratos y protocolo de cambio
 
 - Los cuatro contratos + este documento forman la **versión de contrato** (v1.0 al aprobarse). Se registra en `meta.contract_version` de cada checkpoint y en `manifest.csv` de vectores de prueba.
@@ -372,3 +375,4 @@ Justificación: epsilon de FP32 ≈ 1,19·10⁻⁷; una acumulación de ~10³–
 | 1.0-draft | 2026-11-10 | Primera redacción completa (FASE 0). |
 | 1.0-draft r1 | 2026-11-11 | FASE 1: forma del índice TensorBundle (ndim ≤ 4), política git coherente con D-017, generador de pesos (D-018) (ver `docs/validation-fase1.md`). |
 | 1.0-draft r2 | 2026-11-11 | CIFAR-10 binario (D-028) y flujo de selección (D-029) reflejados. |
+| 1.0-draft r3 | 2026-11-11 | Semillas de vectores dorados y precisión de referencia FP64 (D-033). |

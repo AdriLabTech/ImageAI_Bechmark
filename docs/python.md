@@ -35,6 +35,7 @@ implementations/python/
 │   │   ├── conv2d.py           # Conv2D stride 1 VALID, im2col + matmul (ver §4)
 │   │   ├── maxpool2d.py        # 2×2 stride 2 floor, argmax primer-orden-raster
 │   │   ├── flatten.py          # reshape NCHW
+│   │   ├── relu.py             # envoltorio de activations.relu_* como capa
 │   │   └── dense.py            # capa densa (O, I)
 │   │
 │   ├── model/
@@ -134,10 +135,23 @@ El CLI reproduce exactamente el contrato de `architecture.md` §8 (`tests`/`trai
 3. T1 completo (`test_golden_vectors.py`) contra los vectores generados.
 4. La serialización TensorBundle ida/vuelta es byte-idéntica (reescritura produce el mismo SHA-256).
 
-## 9. Historial de cambios
+## 9. Estado de la FASE 2 (2026-11-11)
+
+**Implementado y probado** (`implementations/python/`, 69 pruebas + 4 transversales en `tests/`):
+`tensor_utils` (TensorBundle), `initializers` (carga), `activations`, `losses`, `Dense`, `Flatten`, `ReLU`, `MaxPool2D`, `Conv2D` (im2col + GEMM), utilidad `tests/gradcheck.py`.
+**Pendiente** (FASE 3 en adelante): `model/cnn.py`, `training/*`, `data/*`, `inference/*`, `main.py`, gradcheck del modelo completo, vectores `model` y `train_step`, determinismo.
+
+## 10. Resultados medidos de la FASE 2
+
+- Gradcheck FP64 (h = 1e-5, muestra de 400 elementos por tensor): dense/BCE/ReLU/sigmoid < 1e-6; conv/maxpool < 1e-5, incluidas las formas reales de conv1 (3→16 sobre 32×32), conv2 (16→32 sobre 15×15), dense1 y dense2.
+- T1: los 18 vectores dorados pasan; el error absoluto máximo observado es 1,1·10⁻⁵ (`conv1.grad_weight`, tolerancia 1·10⁻⁴); el resto ≤ 1·10⁻⁶ salvo la pérdida de logits extremos (7,6·10⁻⁶ sobre un valor de ≈79).
+- Mutación: cuatro fallos introducidos a propósito (ReLU en 0, empate de MaxPool al último, `col2im` sin acumular, BCE sin estabilizar) hacen fallar las pruebas.
+
+## 11. Historial de cambios
 
 | Versión | Fecha | Cambio |
 |---|---|---|
 | 1.0-draft | 2026-11-10 | Primera redacción (FASE 0). |
 | 1.0-draft r1 | 2026-11-11 | FASE 1: precisión sobre el aplanado de ventana de MaxPool (ver `docs/validation-fase1.md`). |
 | 1.0-draft r2 | 2026-11-11 | Sin memmap (D-032): datos en RAM antes del cronómetro. |
+| 1.0-draft r3 | 2026-11-11 | FASE 2: estado, `relu.py`, resultados medidos. |

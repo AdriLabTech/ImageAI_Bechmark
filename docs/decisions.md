@@ -89,6 +89,11 @@ Orden: pool de entrenamiento clases 0→9, luego pool de test clases 0→9 (`dat
 ### D-031 — Calentamiento en el mismo proceso con recarga de pesos iniciales *(antes P-014; aprobada)*
 ### D-032 — Datos enteros a RAM antes de cronometrar; `data_load_s` aparte *(antes P-015; aprobada)*
 
+### D-033 — Vectores dorados calculados en FP64 y guardados como FP32 *(2026-11-11)*
+**Contexto**: `architecture.md` §10.2 exigía generarlos «desde operaciones validadas»; faltaba decir en qué precisión.
+**Decisión**: referencia en FP64 sobre entradas FP32 exactas. **Alternativa descartada**: generarlos con el propio motor FP32 (la prueba T1 compararía el motor consigo mismo).
+**Consecuencia**: la tolerancia 1e-5/1e-4 mide el error real del motor FP32; margen medido en `docs/python.md` §10.
+
 ---
 
 ## B. Decisiones pendientes de aprobación
@@ -101,7 +106,7 @@ Ninguna. (P-001…P-015 resueltas; ver §A.)
 |---|---|---|
 | 0 | Análisis y especificación (4 contratos + architecture + python + decisions) | Hecha (2026-11-10) |
 | 1 | Validación documental cruzada | **Hecha 2026-11-11** |
-| 2 | Motor matemático Python + vectores dorados | **En curso** (2026-11-11) |
+| 2 | Motor matemático Python + vectores dorados | **Hecha 2026-11-11** (operaciones; el modelo completo es la FASE 3) |
 | 3 | Integración del modelo | Pendiente |
 | 4 | Dataset (descarga, derivación, manifiestos) | Pendiente |
 | 5 | Entrenamiento completo | Pendiente |
@@ -116,3 +121,4 @@ Ninguna. (P-001…P-015 resueltas; ver §A.)
 | 2026-11-10 | Creación del registro con D-001…D-017 y P-001…P-010. |
 | 2026-11-11 | P-001…P-010 aprobadas (P-007 por defecto) → D-018…D-027. FASE 1: P-011…P-015 nuevos. |
 | 2026-11-11 | P-011…P-015 aprobadas → D-028…D-032. Sin pendientes. |
+| 2026-11-11 | FASE 2 hecha; D-033. |

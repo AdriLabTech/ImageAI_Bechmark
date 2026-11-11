@@ -1,0 +1,19 @@
+case,operation,purpose,sha256,contract_version
+conv2d/case_001,conv2d,"formas reales de conv1 (1,3,32,32)",043e363b2d0dc4ac873ac999b6e3da7980cad3b76ae29c5aca1fcdaf353aefe0,1
+conv2d/case_002,conv2d,"formas reales de conv2 (1,16,15,15)",1718422207aa36b5cf63c9644d260e643b2c89ffcbe8f7f7cedcefc304a45308,1
+conv2d/case_003,conv2d,"pequeño para depurar a mano: N=2, C=1, 5×5, O=2",1f771d164c233490b6308e3abc7a0656188d43f7b9bc154ccebe6ba8c3ab7980,1
+conv2d/case_004,conv2d,"entrada y bias negativos (2,3,8,8)",b7a84a5c94689e9b777600c9b044648771cd231a99f57ea9002a6342a6898cac,1
+maxpool2d/case_001,maxpool2d,entrada par 30×30 (formas reales de pool1),b50919f1bdccbb11aa5837c7fdb3c92dc896e15fe271f1ca108eee617b632076,1
+maxpool2d/case_002,maxpool2d,entrada impar 13×13: descarta fila y columna 12,ec6946cf769ae283ee6d295684e8ed093ea56b5904175448dffcbc19ec2e61c4,1
+maxpool2d/case_003,maxpool2d,empates de máximo (regla del primer máximo en orden raster),a46a5bb4bb4244d360eeaa4e4dab8ff50ff357cd90a60458a8f2959f31c0a43b,1
+maxpool2d/case_004,maxpool2d,"formas reales de pool2 (1,32,13,13)",1445e43f7eae9cae80f366201938e3d7e40a4785eb4b18f11a12330a4b7b7f37,1
+relu/case_001,relu,ceros exactos y negativos; derivada en 0 = 0,36412dfcb4b71028f5396b58f368bcd5edc891fb9780141a39ec4cc978b8e543,1
+relu/case_002,relu,"formas reales con magnitudes extremas (1e-30, 1, 1e6)",2ed013b8d7b7178218fee670454f20383a93248b7659a1bf0a9cf62fc1aebc92,1
+sigmoid/case_001,sigmoid,"rango [-30, 30] (estabilidad)",0a50ca80c64042781ba046e586844e4687567099cb26c4f9b8babacef653ef25,1
+sigmoid/case_002,sigmoid,rango fino alrededor de 0,e62d658f281ea4ab8d108f838b37cc81a1ada872436bfbfb3e545265d806b89e,1
+flatten/case_001,flatten,"forma real (2,32,6,6) → (2,1152)",353476c6f5b778934ac09002f51f7b0c78e4cc506e7d693d79cc79d099b34394,1
+dense/case_001,dense,formas reales de dense1,0bf754dbb5af0b222f4b2e917608c3daa463764e03f3b01fc87308de6026b9bc,1
+dense/case_002,dense,cuadrado pequeño verificable a mano,95330e32aa62d749ef756fa4fbf5e36555eea551d69e2eefc46925b4fe2e83b3,1
+bce/case_001,bce,logits = 0,4766e5ca2d9b9fcd436d5ab10fa9b64aa5c33d8933d492b32e9dddc7571827a0,1
+bce/case_002,bce,logits extremos sin desbordamiento,6391c5afe1d20c3c180ad47c4ec83c37dda73940d1cbefd67cfa11d96d4b4f37,1
+bce/case_003,bce,"mezcla realista (32,1)",ca7e0d6e743a3005abefa1cb1c2768e09d477e825b835947cbf67bc802b0f7d8,1
