@@ -19,3 +19,4 @@ bce/case_002,bce,logits extremos sin desbordamiento,6391c5afe1d20c3c180ad47c4ec8
 bce/case_003,bce,"mezcla realista (32,1)",ca7e0d6e743a3005abefa1cb1c2768e09d477e825b835947cbf67bc802b0f7d8,1
 model/case_001,model,"forward completo, 4 imágenes sintéticas, pesos = initial_weights.tb",b0291dc03a18d58375c555de2cf03618060ef3875231818bcecce9d578007552,1
 train_step/case_001,train_step,"un paso SGD (lr 0,01), lote SINTÉTICO de 32 con pesos iniciales",b313f6bfd4a2a15cb3ebd92ba2efef4c96b62b56b25feb165560825032798338,1
+train_step/case_002,train_step,"un paso SGD (lr 0,01), LOTE REAL 1 de la época 1 (perm₁[0..32) de train)",4da99a19e406378aecc1b8c342c1265cde86db75cd301c00ab64569f67f985ab,1

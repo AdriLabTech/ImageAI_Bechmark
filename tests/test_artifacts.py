@@ -35,6 +35,10 @@ def test_box_muller_moments():
 
 def test_artifacts_regenerate_bit_identical(tmp_path):
     """Regenerar en un árbol temporal produce exactamente los mismos ficheros que los versionados."""
+    ds = ROOT / "shared" / "dataset" / "train_images.bin"
+    if not ds.exists():
+        import pytest
+        pytest.skip("dataset no preparado (FASE 4): no se puede regenerar train_step/case_002")
     work = tmp_path / "repo"
     (work / "scripts").mkdir(parents=True)
     (work / "implementations").mkdir()
@@ -42,6 +46,9 @@ def test_artifacts_regenerate_bit_identical(tmp_path):
         shutil.copy(ROOT / "scripts" / f, work / "scripts" / f)
     shutil.copytree(ROOT / "implementations" / "python" / "src", work / "implementations" / "python" / "src",
                     ignore=shutil.ignore_patterns("__pycache__"))
+    for rel in ("shared/dataset/train_images.bin", "shared/dataset/train_labels.bin", "shared/permutations/train_epoch_001.perm"):
+        (work / rel).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(ROOT / rel, work / rel)
     subprocess.run([sys.executable, str(work / "scripts" / "generate_artifacts.py")], check=True, capture_output=True)
     for rel in [Path("shared/initial_weights/initial_weights.tb"), Path("shared/test_vectors/manifest.csv")] + \
             sorted(p.relative_to(work) for p in (work / "shared" / "test_vectors").rglob("*.tb")):

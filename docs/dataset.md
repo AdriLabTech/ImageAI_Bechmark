@@ -24,7 +24,7 @@ https://www.cs.toronto.edu/~kriz/cifar-10-binary.tar.gz
 1. Descargar `cifar-10-binary.tar.gz` a `shared/dataset/raw/`.
 2. Verificar integridad:
    - **MD5 oficial** (publicado en la página de la fuente, leído el 2026-11-11): `c32a1d4ab5d03f1284b67883e8d87530`.
-   - **SHA-256**: se fijará y registrará en `shared/dataset/CHECKSUMS.sha256` en la primera descarga real (FASE 4). *(No se inventa el valor ahora.)*
+   - **SHA-256** (fijado en la primera descarga real, 2026-11-11, tras verificar el MD5; 170.052.171 B): `c4a38c50a1bc5f3a1c5537f2155ab9d68f9f25eb1ed8d9ddda3db29a59bca1dd`, registrado en `shared/dataset/CHECKSUMS.sha256`.
 3. La descarga la realiza únicamente el script Python `scripts/download_cifar10.py`. Los otros motores **nunca descargan ni leen el archivo original**.
 
 ## 3. Interpretación del formato original
@@ -157,7 +157,7 @@ Ruta: `shared/dataset/`. Archivos binarios **little-endian**, sin cabecera:
 
 Es el mismo orden del formato original: la conversión es copia + reshape, sin reordenar.
 
-**Orden de las muestras**: la posición `p` (0-based) dentro de cada fichero corresponde a la fila `p` del manifiesto correspondiente. Las imágenes de un batch de entrenamiento se leen en posiciones consecutivas según la permutación de época (§8).
+**Orden de las muestras** (D-035): dentro de cada conjunto, las muestras seleccionadas se escriben en orden **ascendente de índice global** (`data_batch_1`…`data_batch_5` y por índice dentro de cada uno; `test_batch` por índice). La selección aleatoria decide *qué* imágenes entran, no su orden en el fichero (el orden de entrenamiento lo fijan las permutaciones). La posición `p` (0-based) dentro de cada fichero corresponde a la fila `p` del manifiesto correspondiente. Las imágenes de un batch de entrenamiento se leen en posiciones consecutivas según la permutación de época (§8).
 
 **Etiquetas binarias**: uint8 con valor 0 (NOT_DOG) o 1 (DOG). La clase CIFAR original queda registrada en el manifiesto.
 
@@ -251,3 +251,4 @@ No necesita: el tar.gz original, la fuente HTTP ni el PRNG.
 | 1.0-draft | 2026-11-10 | Primera redacción completa (FASE 0). |
 | 1.0-draft r1 | 2026-11-11 | FASE 1: tabla de cuotas corregida (deer 444), regla del resto explícita, aclaración del sesgo de Fisher-Yates (ver `docs/validation-fase1.md`). |
 | 1.0-draft r2 | 2026-11-11 | D-028 (CIFAR-10 binario, sin pickle) y D-029 (flujo único del PRNG de selección). |
+| 1.0-draft r3 | 2026-11-11 | FASE 4: SHA-256 fijado, orden de muestras (D-035). |

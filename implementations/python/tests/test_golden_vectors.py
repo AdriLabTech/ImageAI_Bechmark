@@ -82,7 +82,7 @@ def test_manifest_covers_required_cases():
     ops = {}
     for r in rows():
         ops[r["operation"]] = ops.get(r["operation"], 0) + 1
-    assert ops == {"conv2d": 4, "maxpool2d": 4, "relu": 2, "sigmoid": 2, "flatten": 1, "dense": 2, "bce": 3, "model": 1, "train_step": 1}
+    assert ops == {"conv2d": 4, "maxpool2d": 4, "relu": 2, "sigmoid": 2, "flatten": 1, "dense": 2, "bce": 3, "model": 1, "train_step": 2}
 
 
 @pytest.mark.parametrize("row", rows(), ids=lambda r: r["case"])

@@ -99,6 +99,21 @@ def assert_no_ties(x):
     assert (top2[..., 1] > top2[..., 0]).all(), "caso sin empates con empate accidental"
 
 
+def train_step(weights, x, y):
+    """Forward + BCE + backward + SGD en FP64 sobre pesos FP32 exactos; tensores guardados como FP32."""
+    model = CNN(np.float64)
+    model.load_params({k: f64(v) for k, v in weights.items()})
+    loss, dz = bce_with_logits(model.forward(f64(x)), y)
+    model.backward(dz)
+    grads = model.grads()
+    t = dict(input=x, labels=y, loss=f32([loss]))
+    for name in sorted(weights):
+        t[f"weights_init.{name}"] = weights[name]
+        t[f"grads.{name}"] = f32(grads[name])
+        t[f"weights_updated.{name}"] = f32(f64(weights[name]) - LEARNING_RATE * grads[name])
+    return t
+
+
 def build_cases(weights):
     cases = []                                          # (operación, purpose, tensores)
     k = [0]
@@ -189,21 +204,22 @@ def build_cases(weights):
         t[f"a{i}"] = f32(a)
     cases.append(("model", "forward completo, 4 imágenes sintéticas, pesos = initial_weights.tb", t))
 
-    # ---- T2: un paso de entrenamiento con un lote sintético de 32 (el lote real 1 llega en la FASE 4, D-034)
+    # ---- T2: un paso de entrenamiento con un lote sintético de 32 (case_001; el real es case_002, D-034)
     g = gen()
     x = g.images(32)
     y = np.array([int(g.rng.next() & 1) for _ in range(32)], np.uint8)
-    model = CNN(np.float64)
-    model.load_params({k: f64(v) for k, v in weights.items()})
-    loss, dz = bce_with_logits(model.forward(f64(x)), y)
-    model.backward(dz)
-    grads, params = model.grads(), model.params()
-    t = dict(input=x, labels=y, loss=f32([loss]))
-    for name in sorted(weights):
-        t[f"weights_init.{name}"] = weights[name]
-        t[f"grads.{name}"] = f32(grads[name])
-        t[f"weights_updated.{name}"] = f32(f64(weights[name]) - LEARNING_RATE * grads[name])
-    cases.append(("train_step", "un paso SGD (lr 0,01), lote SINTÉTICO de 32 con pesos iniciales", t))
+    cases.append(("train_step", "un paso SGD (lr 0,01), lote SINTÉTICO de 32 con pesos iniciales", train_step(weights, x, y)))
+
+    # ---- T2 con datos reales (case_002): lote 1 de la época 1 = posiciones perm₁[0..32) de train
+    ds, perm = ROOT / "shared" / "dataset", ROOT / "shared" / "permutations" / "train_epoch_001.perm"
+    if (ds / "train_images.bin").exists() and perm.exists():
+        imgs = np.fromfile(ds / "train_images.bin", np.uint8).reshape(8000, 3072)
+        labels = np.fromfile(ds / "train_labels.bin", np.uint8)
+        pos = np.fromfile(perm, "<u4")[:32]
+        x = imgs[pos].reshape(32, 3, 32, 32).astype(np.float32) / np.float32(255.0)
+        cases.append(("train_step", "un paso SGD (lr 0,01), LOTE REAL 1 de la época 1 (perm₁[0..32) de train)", train_step(weights, x, labels[pos])))
+    else:
+        print("AVISO: dataset no preparado; se omite train_step/case_002 (lote real)")
     return cases
 
 

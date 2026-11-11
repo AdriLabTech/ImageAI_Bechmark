@@ -2,7 +2,7 @@
 
 Clasificador neuronal de imágenes (**¿perro o no perro?**) implementado desde cero en **seis lenguajes** para comparar capacidades, rendimiento y complejidad de cada uno al construir motores de IA.
 
-**Estado**: FASE 3 hecha (modelo completo del motor Python, 108 pruebas, 2026-11-11). Siguiente: FASE 4 (dataset).
+**Estado**: FASE 4 hecha (dataset real preparado y verificado, 2026-11-11). Siguiente: FASE 5 (entrenamiento).
 
 ## Filosofía
 
@@ -34,7 +34,7 @@ tests/             Pruebas transversales del repositorio
 | [docs/benchmark.md](docs/benchmark.md) | Cinco categorías (rendimiento, recursos, calidad, complejidad, portabilidad), procedimiento y formatos |
 | [docs/architecture.md](docs/architecture.md) | Contratos entre los seis motores: TensorBundle v1, CLI, vectores de prueba, tolerancias |
 | [docs/python.md](docs/python.md) | Propuesta del motor Python: módulos, estrategia im2col+GEMM, pruebas |
-| [docs/decisions.md](docs/decisions.md) | Decisiones D-001…D-034; pendiente P-016 (tolerancias) |
+| [docs/decisions.md](docs/decisions.md) | Decisiones D-001…D-035; pendiente P-016 (tolerancias) |
 
 ## Resumen técnico
 
@@ -51,11 +51,21 @@ tests/             Pruebas transversales del repositorio
 | 1 | Validación documental cruzada | **Hecha** (`docs/validation-fase1.md`) |
 | 2 | Motor matemático Python + vectores dorados | **Hecha** (18 vectores, pesos iniciales, gradcheck) |
 | 3 | Integración del modelo | **Hecha** (gradcheck del modelo completo, T1 + T2 sintético) |
-| 4 | Dataset | Pendiente |
+| 4 | Dataset | **Hecha** (CIFAR-10 binario, 11.000 imágenes verificadas, T2 con lote real) |
 | 5 | Entrenamiento | Pendiente |
 | 6 | Inferencia | Pendiente |
 | 7 | Benchmark inicial Python | Pendiente |
 | 8 | Documentación final | Pendiente |
+
+## Preparar los datos (herramientas compartidas, no se miden)
+
+```bash
+PY=implementations/python/.venv/bin/python
+$PY -I scripts/download_cifar10.py      # descarga (≈162 MB) y verifica MD5 oficial + SHA-256
+$PY -I scripts/prepare_dataset.py       # dataset derivado, manifiestos, 20 permutaciones, CHECKSUMS.sha256
+$PY scripts/generate_artifacts.py       # pesos iniciales y vectores dorados (incl. train_step con lote real)
+```
+Los `*.bin`, `*.perm` y el tar.gz no se suben a git (se regeneran bit a bit); manifiestos, checksums, pesos y vectores sí (D-017).
 
 ## Uso
 

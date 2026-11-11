@@ -99,6 +99,10 @@ Orden: pool de entrenamiento clases 0→9, luego pool de test clases 0→9 (`dat
 **Decisión**: `train_step/case_001` usa un lote **sintético** de 32 (splitmix64 → uint8 → `/255`) con los pesos iniciales compartidos; `case_002` (lote real) se añade en la FASE 4. Así la matemática del paso completo queda verificable ya, sin esperar al dataset.
 **Consecuencia**: el criterio de aceptación 6 de `training.md` §10 se cumple solo cuando existan ambos casos.
 
+### D-035 — Orden de las muestras dentro de cada conjunto *(2026-11-11; laguna del contrato cerrada)*
+**Contexto**: `dataset.md` v1 definía qué muestras entran en cada conjunto pero no su orden en los ficheros (afecta a las posiciones de las permutaciones, al orden de validación/test y al lote T2 real).
+**Decisión**: orden ascendente de índice global (fuente y luego índice). **Alternativa descartada**: orden de selección (barajado por clase): menos auditable y sin ventaja.
+
 ---
 
 ## B. Decisiones pendientes de aprobación
@@ -117,7 +121,7 @@ Orden: pool de entrenamiento clases 0→9, luego pool de test clases 0→9 (`dat
 | 1 | Validación documental cruzada | **Hecha 2026-11-11** |
 | 2 | Motor matemático Python + vectores dorados | **Hecha 2026-11-11** (operaciones; el modelo completo es la FASE 3) |
 | 3 | Integración del modelo | **Hecha 2026-11-11** (P-016 abierto, no bloquea) |
-| 4 | Dataset (descarga, derivación, manifiestos) | Pendiente |
+| 4 | Dataset (descarga, derivación, manifiestos) | **Hecha 2026-11-11** |
 | 5 | Entrenamiento completo | Pendiente |
 | 6 | Inferencia | Pendiente |
 | 7 | Arnés de benchmark + línea base Python | Pendiente |
@@ -132,3 +136,4 @@ Orden: pool de entrenamiento clases 0→9, luego pool de test clases 0→9 (`dat
 | 2026-11-11 | P-011…P-015 aprobadas → D-028…D-032. Sin pendientes. |
 | 2026-11-11 | FASE 2 hecha; D-033. |
 | 2026-11-11 | FASE 3 hecha; D-034 y P-016. |
+| 2026-11-11 | FASE 4 hecha; D-035. P-016 sigue pendiente. |

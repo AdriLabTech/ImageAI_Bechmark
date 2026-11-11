@@ -2,11 +2,11 @@
 
 Motor #1: Python 3 + NumPy, sin frameworks de ML. Contrato en `../../docs/` (`model.md`, `python.md`).
 
-**Estado (FASE 3)**: operaciones, capas, `CNN` y SGD implementados y probados; datos (FASE 4), entrenamiento (FASE 5) e inferencia (FASE 6) pendientes.
+**Estado (FASE 4)**: operaciones, capas, `CNN`, SGD y cargador de datos implementados y probados; entrenamiento (FASE 5) e inferencia (FASE 6) pendientes.
 
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
-.venv/bin/pytest -q                      # 108 pruebas: operaciones, modelo, gradcheck FP64 (capas y red completa), T1/T2 contra shared/test_vectors
+.venv/bin/pytest -q                      # 118 pruebas: operaciones, modelo, gradcheck FP64 (capas y red completa), T1/T2 contra shared/test_vectors
 .venv/bin/pytest -q ../../tests          # PRNG y regeneración bit a bit de artefactos
 ../../tests/check_spec.py                # aritmética de la especificación (python3 -I)
 ```

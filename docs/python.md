@@ -135,11 +135,11 @@ El CLI reproduce exactamente el contrato de `architecture.md` §8 (`tests`/`trai
 3. T1 completo (`test_golden_vectors.py`) contra los vectores generados.
 4. La serialización TensorBundle ida/vuelta es byte-idéntica (reescritura produce el mismo SHA-256).
 
-## 9. Estado (2026-11-11, tras la FASE 3)
+## 9. Estado (2026-11-11, tras la FASE 4)
 
-**Implementado y probado** (`implementations/python/`, 108 pruebas del motor + 4 transversales):
-`tensor_utils` (TensorBundle), `initializers` (carga), `activations`, `losses`, `Dense`, `Flatten`, `ReLU`, `MaxPool2D`, `Conv2D` (im2col + GEMM), `model/cnn.py` (`CNN`: 10 capas, `forward`/`backward`, `params`/`grads`, `save`/`load`), `training/optimizer.py` (SGD), `tests/gradcheck.py`.
-**Pendiente**: `training/trainer.py` y `checkpoint.py` (FASE 5), `data/*` (FASE 4), `inference/*` (FASE 6), `main.py`, determinismo de entrenamiento completo, caso `train_step/case_002` con lote real.
+**Implementado y probado** (`implementations/python/`, 118 pruebas del motor + 16 transversales):
+`tensor_utils`, `initializers`, `activations`, `losses`, `Dense`, `Flatten`, `ReLU`, `MaxPool2D`, `Conv2D`, `model/cnn.py`, `training/optimizer.py`, `data/preprocessing.py` y `data/dataloader.py` (`Dataset` en RAM, `load_permutation`, `sequential_batches`), `tests/gradcheck.py`.
+**Pendiente**: `training/trainer.py` y `checkpoint.py` (FASE 5), `inference/*` (FASE 6), `main.py`, determinismo del entrenamiento completo.
 
 ## 10. Resultados medidos (FASES 2 y 3)
 
@@ -149,6 +149,8 @@ El CLI reproduce exactamente el contrato de `architecture.md` §8 (`tests`/`trai
 - **Consistencia**: el gradiente de un lote de 8 es la media de los 8 gradientes individuales (coherencia `dZ = (σ−y)/N`); `forward` por lote y por muestra coinciden a 1e-5; `save`→`load` byte-idéntico.
 - **Descenso**: 60 pasos de SGD (lr 0,01) sobre 16 imágenes fijas bajan la pérdida de 0,9381 a 0,4047. Es una prueba de sanidad del sentido del gradiente, no una métrica de calidad.
 - **Mutaciones** (fallos introducidos a propósito, todos detectados): ReLU en 0, empate de MaxPool al último, `col2im` sin acumular, BCE sin estabilizar, `dense1.dx ×1,001`, gradiente de bias de conv ×0,99, backward que salta una ReLU, SGD con signo opuesto. Un `lr` erróneo del 1 % o 0,1 % **solo** lo detecta el criterio escalado (P-016).
+- **Dataset (FASE 4)**: 11.000 imágenes derivadas idénticas byte a byte a sus registros originales de CIFAR-10 (verificado fila a fila, `tests/test_dataset.py`); cuotas por clase exactas, 0 solapamientos, balance 50/50 en los tres conjuntos, 20 permutaciones exactas y distintas, regeneración determinista (dos ejecuciones → mismos SHA-256). Orden RGB planar comprobado también a ojo sobre una muestra renderizada.
+- **T2 real**: `train_step/case_002` (lote 1 de la época 1) coincide con el cargador del motor y pasa T2 y el criterio escalado.
 - Referencia indicativa (no es benchmark; 1 muestra, BLAS sin fijar a un hilo): un paso de entrenamiento de 32 imágenes ≈ 24 ms.
 
 ## 11. Historial de cambios
@@ -160,3 +162,4 @@ El CLI reproduce exactamente el contrato de `architecture.md` §8 (`tests`/`trai
 | 1.0-draft r2 | 2026-11-11 | Sin memmap (D-032): datos en RAM antes del cronómetro. |
 | 1.0-draft r3 | 2026-11-11 | FASE 2: estado, `relu.py`, resultados medidos. |
 | 1.0-draft r4 | 2026-11-11 | FASE 3: `CNN`, SGD, gradcheck del modelo completo, resultados medidos. |
+| 1.0-draft r5 | 2026-11-11 | FASE 4: datos, T2 con lote real. |
