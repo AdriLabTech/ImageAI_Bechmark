@@ -135,11 +135,11 @@ El CLI reproduce exactamente el contrato de `architecture.md` §8 (`tests`/`trai
 3. T1 completo (`test_golden_vectors.py`) contra los vectores generados.
 4. La serialización TensorBundle ida/vuelta es byte-idéntica (reescritura produce el mismo SHA-256).
 
-## 9. Estado (2026-11-11, tras la FASE 4)
+## 9. Estado (2026-11-11, tras la FASE 5)
 
-**Implementado y probado** (`implementations/python/`, 118 pruebas del motor + 16 transversales):
-`tensor_utils`, `initializers`, `activations`, `losses`, `Dense`, `Flatten`, `ReLU`, `MaxPool2D`, `Conv2D`, `model/cnn.py`, `training/optimizer.py`, `data/preprocessing.py` y `data/dataloader.py` (`Dataset` en RAM, `load_permutation`, `sequential_batches`), `tests/gradcheck.py`.
-**Pendiente**: `training/trainer.py` y `checkpoint.py` (FASE 5), `inference/*` (FASE 6), `main.py`, determinismo del entrenamiento completo.
+**Implementado y probado** (`implementations/python/`, 124 pruebas del motor + 16 transversales):
+`tensor_utils`, `initializers`, `activations`, `losses`, `Dense`, `Flatten`, `ReLU`, `MaxPool2D`, `Conv2D`, `model/cnn.py`, `training/optimizer.py`, `data/preprocessing.py` y `data/dataloader.py` (`Dataset` en RAM, `load_permutation`, `sequential_batches`), `tests/gradcheck.py`, `training/trainer.py`, `training/checkpoint.py`, `main.py` (`tests` y `train`).
+**Pendiente**: `inference/*` y `main.py infer` (FASE 6), harness de benchmark (FASE 7).
 
 ## 10. Resultados medidos (FASES 2 y 3)
 
@@ -153,6 +153,22 @@ El CLI reproduce exactamente el contrato de `architecture.md` §8 (`tests`/`trai
 - **T2 real**: `train_step/case_002` (lote 1 de la época 1) coincide con el cargador del motor y pasa T2 y el criterio escalado.
 - Referencia indicativa (no es benchmark; 1 muestra, BLAS sin fijar a un hilo): un paso de entrenamiento de 32 imágenes ≈ 24 ms.
 
+## 10b. Resultados del entrenamiento de referencia (FASE 5)
+
+Ejecución `reference_001` (20 épocas, mono-hilo, Python 3.14 / NumPy 2.5, sin ajustar nada; valores reales, no objetivos):
+
+| Época | train_loss | val_loss | val_accuracy |
+|---|---|---|---|
+| 1 | 0,6251 | 0,5789 | 0,6840 |
+| 10 | 0,4484 | 0,4586 | 0,7870 |
+| 20 | 0,3920 | 0,4275 | 0,8030 |
+
+- **Test (modelo de la época 20)**: `test_loss` 0,4339, `test_accuracy` 0,7965 (TP 803, FP 210, FN 197, TN 790; recomprobado de forma independiente desde `test_logits.csv` + `test_labels.bin`: exactitud idéntica y pérdida 0,43385 en FP64).
+- **Determinismo**: dos ejecuciones completas dan el mismo SHA-256 de `model_final.tb` (`03ad67e8cfd7346b9112462aab929f246b8a69181d41432384a83f19190a6853`; también `test_logits.csv` idéntico). Este hash es de esta máquina y versión de BLAS; no es un valor contractual.
+- `val_accuracy` fluctúa entre épocas (p. ej. 0,7710 → 0,7900 → 0,7530): es esperable con SGD sin momentum sobre 1000 muestras; no se selecciona el mejor modelo (training.md §6).
+- Tiempo indicativo: ≈ 3,2 s por época de entrenamiento (no es benchmark: sin protocolo de FASE 7).
+- Pruebas: `tests/test_training.py` (determinismo SHA-256 con 1 época ×2, salidas legibles, formato `%.9g`, pesos iniciales bit-idénticos, abortar con NaN) y `main.py tests` (T1 + T2 + entrenamiento: 50 pruebas).
+
 ## 11. Historial de cambios
 
 | Versión | Fecha | Cambio |
@@ -163,3 +179,4 @@ El CLI reproduce exactamente el contrato de `architecture.md` §8 (`tests`/`trai
 | 1.0-draft r3 | 2026-11-11 | FASE 2: estado, `relu.py`, resultados medidos. |
 | 1.0-draft r4 | 2026-11-11 | FASE 3: `CNN`, SGD, gradcheck del modelo completo, resultados medidos. |
 | 1.0-draft r5 | 2026-11-11 | FASE 4: datos, T2 con lote real. |
+| 1.0-draft r6 | 2026-11-11 | FASE 5: trainer, checkpoints, CLI, resultados de referencia. |

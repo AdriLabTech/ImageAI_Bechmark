@@ -151,3 +151,4 @@ El entrenamiento es un proceso caótico: diferencias de redondeo del orden de 1e
 |---|---|---|
 | 1.0-draft | 2026-11-10 | Primera redacción completa (FASE 0). |
 | 1.0-draft r1 | 2026-11-11 | FASE 1: notación de la validación, σ innecesaria en BCE, metadatos sin JSON, tolerancia T1, formato de logits, erratas (ver `docs/validation-fase1.md`). |
+| 1.0-draft r2 | 2026-11-11 | FASE 5 (sin cambios contractuales): aceptación verificada; detalles de implementación en D-036. |
