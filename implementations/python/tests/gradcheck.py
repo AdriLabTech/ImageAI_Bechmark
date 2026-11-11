@@ -15,7 +15,7 @@ def rel_error(g_num, g_ana):
     return float(num / den)
 
 
-def numeric_grad(f, x, max_elems=400, seed=0):
+def numeric_grad(f, x, max_elems=400, seed=0, h=H):
     """Devuelve (índices planos comprobados, gradiente numérico en ellos). f modifica x in situ vía view."""
     flat = x.reshape(-1)
     idx = np.arange(flat.size)
@@ -24,12 +24,12 @@ def numeric_grad(f, x, max_elems=400, seed=0):
     g = np.empty(len(idx))
     for j, i in enumerate(idx):
         old = flat[i]
-        flat[i] = old + H
+        flat[i] = old + h
         fp = f()
-        flat[i] = old - H
+        flat[i] = old - h
         fm = f()
         flat[i] = old
-        g[j] = (fp - fm) / (2 * H)
+        g[j] = (fp - fm) / (2 * h)
     return idx, g
 
 

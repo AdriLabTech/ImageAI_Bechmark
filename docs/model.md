@@ -378,7 +378,7 @@ criterio: error_rel < 1e-6  para dense/sigmoid/BCE/flatten
 
 El gradient check usa FP64 **solo como herramienta de prueba**; el motor que se mide sigue siendo FP32 (§2.3).
 
-**Cruces de «kink»**: ReLU y MaxPool no son diferenciables en los empates/ceros; si una perturbación `±h` cruza uno, la diferencia finita falla sin que haya error de implementación. Por eso los casos unitarios usan entradas con separación > 2h y el gradcheck del modelo completo usa lotes pequeños; si un parámetro falla, se repite con otro lote de prueba y se documenta el cruce, no se relaja la tolerancia.
+**Cruces de «kink»**: ReLU y MaxPool no son diferenciables en los empates/ceros; si una perturbación `±h` cruza uno, la diferencia finita falla sin que haya error de implementación. Por eso los casos unitarios usan entradas con separación > 2h y el gradcheck del modelo completo usa lotes pequeños; si un tensor falla con h = 1e-5, se **repiten los mismos elementos con h = 1e-7** (el cruce deja de ocurrir) y se exige la misma tolerancia; se documenta el cruce, nunca se relaja la tolerancia. Un error real falla con ambos pasos. Observado en la FASE 3: un cruce de argmax de MaxPool en `conv1.weight` (1 de 5 semillas).
 
 ---
 
@@ -394,3 +394,4 @@ Cada operación y el modelo completo tendrán casos deterministas con entrada, p
 |---|---|---|
 | 1.0-draft | 2026-11-10 | Primera redacción completa (FASE 0). |
 | 1.0-draft r1 | 2026-11-11 | FASE 1: A1 sin dX de Conv2D_1, dX=0 fuera de máximos, nota sobre kinks en gradcheck (ver `docs/validation-fase1.md`). |
+| 1.0-draft r2 | 2026-11-11 | §10: protocolo de repetición con h menor ante cruces de kink. |

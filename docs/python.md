@@ -135,17 +135,21 @@ El CLI reproduce exactamente el contrato de `architecture.md` §8 (`tests`/`trai
 3. T1 completo (`test_golden_vectors.py`) contra los vectores generados.
 4. La serialización TensorBundle ida/vuelta es byte-idéntica (reescritura produce el mismo SHA-256).
 
-## 9. Estado de la FASE 2 (2026-11-11)
+## 9. Estado (2026-11-11, tras la FASE 3)
 
-**Implementado y probado** (`implementations/python/`, 69 pruebas + 4 transversales en `tests/`):
-`tensor_utils` (TensorBundle), `initializers` (carga), `activations`, `losses`, `Dense`, `Flatten`, `ReLU`, `MaxPool2D`, `Conv2D` (im2col + GEMM), utilidad `tests/gradcheck.py`.
-**Pendiente** (FASE 3 en adelante): `model/cnn.py`, `training/*`, `data/*`, `inference/*`, `main.py`, gradcheck del modelo completo, vectores `model` y `train_step`, determinismo.
+**Implementado y probado** (`implementations/python/`, 108 pruebas del motor + 4 transversales):
+`tensor_utils` (TensorBundle), `initializers` (carga), `activations`, `losses`, `Dense`, `Flatten`, `ReLU`, `MaxPool2D`, `Conv2D` (im2col + GEMM), `model/cnn.py` (`CNN`: 10 capas, `forward`/`backward`, `params`/`grads`, `save`/`load`), `training/optimizer.py` (SGD), `tests/gradcheck.py`.
+**Pendiente**: `training/trainer.py` y `checkpoint.py` (FASE 5), `data/*` (FASE 4), `inference/*` (FASE 6), `main.py`, determinismo de entrenamiento completo, caso `train_step/case_002` con lote real.
 
-## 10. Resultados medidos de la FASE 2
+## 10. Resultados medidos (FASES 2 y 3)
 
-- Gradcheck FP64 (h = 1e-5, muestra de 400 elementos por tensor): dense/BCE/ReLU/sigmoid < 1e-6; conv/maxpool < 1e-5, incluidas las formas reales de conv1 (3→16 sobre 32×32), conv2 (16→32 sobre 15×15), dense1 y dense2.
-- T1: los 18 vectores dorados pasan; el error absoluto máximo observado es 1,1·10⁻⁵ (`conv1.grad_weight`, tolerancia 1·10⁻⁴); el resto ≤ 1·10⁻⁶ salvo la pérdida de logits extremos (7,6·10⁻⁶ sobre un valor de ≈79).
-- Mutación: cuatro fallos introducidos a propósito (ReLU en 0, empate de MaxPool al último, `col2im` sin acumular, BCE sin estabilizar) hacen fallar las pruebas.
+- **Gradcheck de capas** (FP64, h = 1e-5, muestra de 400 elementos por tensor): dense/BCE/ReLU/sigmoid < 1e-6; conv/maxpool < 1e-5, con las formas reales de conv1, conv2, dense1 y dense2.
+- **Gradcheck del modelo completo + BCE** (5 semillas, 150 elementos por tensor, respecto a los 8 tensores de parámetros y a la entrada): errores relativos ≈ 1e-10…1e-8. Un tensor de una semilla necesitó repetir con h = 1e-7 por un cruce de argmax de MaxPool (verificado: con h = 1e-7 coincide con el analítico hasta 6e-10 absoluto).
+- **T1** (20 vectores, incluido `model`) y **T2** (`train_step/case_001`, lote sintético): error absoluto máximo ≤ 1,1e-5 (`conv1.grad_weight`); error escalado por tensor ≤ 1,1e-6; el resto de comparaciones ≤ 1e-6.
+- **Consistencia**: el gradiente de un lote de 8 es la media de los 8 gradientes individuales (coherencia `dZ = (σ−y)/N`); `forward` por lote y por muestra coinciden a 1e-5; `save`→`load` byte-idéntico.
+- **Descenso**: 60 pasos de SGD (lr 0,01) sobre 16 imágenes fijas bajan la pérdida de 0,9381 a 0,4047. Es una prueba de sanidad del sentido del gradiente, no una métrica de calidad.
+- **Mutaciones** (fallos introducidos a propósito, todos detectados): ReLU en 0, empate de MaxPool al último, `col2im` sin acumular, BCE sin estabilizar, `dense1.dx ×1,001`, gradiente de bias de conv ×0,99, backward que salta una ReLU, SGD con signo opuesto. Un `lr` erróneo del 1 % o 0,1 % **solo** lo detecta el criterio escalado (P-016).
+- Referencia indicativa (no es benchmark; 1 muestra, BLAS sin fijar a un hilo): un paso de entrenamiento de 32 imágenes ≈ 24 ms.
 
 ## 11. Historial de cambios
 
@@ -155,3 +159,4 @@ El CLI reproduce exactamente el contrato de `architecture.md` §8 (`tests`/`trai
 | 1.0-draft r1 | 2026-11-11 | FASE 1: precisión sobre el aplanado de ventana de MaxPool (ver `docs/validation-fase1.md`). |
 | 1.0-draft r2 | 2026-11-11 | Sin memmap (D-032): datos en RAM antes del cronómetro. |
 | 1.0-draft r3 | 2026-11-11 | FASE 2: estado, `relu.py`, resultados medidos. |
+| 1.0-draft r4 | 2026-11-11 | FASE 3: `CNN`, SGD, gradcheck del modelo completo, resultados medidos. |

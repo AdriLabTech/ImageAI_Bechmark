@@ -23,6 +23,8 @@ from src.layers.conv2d import Conv2D                                # noqa: E402
 from src.layers.dense import Dense                                  # noqa: E402
 from src.layers.flatten import Flatten                              # noqa: E402
 from src.layers.maxpool2d import MaxPool2D                          # noqa: E402
+from src.model.cnn import CNN                                       # noqa: E402
+from src.training.optimizer import LEARNING_RATE                    # noqa: E402
 
 CONTRACT_VERSION = 1
 WEIGHTS_SEED = SEED + 1000          # architecture.md §7.1
@@ -62,6 +64,12 @@ class Gen:
         return (lo + (hi - lo) * u).astype(np.float32).reshape(shape)
 
 
+    def images(self, n):
+        """n imágenes sintéticas deterministas: uint8 de splitmix64 normalizado como el contrato (float32(u8)/255.0)."""
+        u8 = np.array([self.rng.next() & 0xFF for _ in range(n * 3072)], np.uint8).reshape(n, 3, 32, 32)
+        return u8.astype(np.float32) / np.float32(255.0)
+
+
 f32 = lambda a: np.asarray(a, dtype=np.float64).astype(np.float32)
 f64 = lambda a: np.asarray(a, dtype=np.float64)
 
@@ -91,7 +99,7 @@ def assert_no_ties(x):
     assert (top2[..., 1] > top2[..., 0]).all(), "caso sin empates con empate accidental"
 
 
-def build_cases():
+def build_cases(weights):
     cases = []                                          # (operación, purpose, tensores)
     k = [0]
 
@@ -169,6 +177,33 @@ def build_cases():
             y = np.array([int(g.rng.next() & 1) for _ in range(32)], np.uint8)
         loss, dz = bce_with_logits(f64(z), y)
         cases.append(("bce", purpose, dict(input=z, labels=y, loss=f32([loss]), grad_input=f32(dz))))
+
+    # ---- modelo completo (FASE 3): batch de 4 imágenes sintéticas con los pesos iniciales compartidos
+    g = gen()
+    x = g.images(4)
+    model = CNN(np.float64)
+    model.load_params({k: f64(v) for k, v in weights.items()})
+    z = model.forward(f64(x))
+    t = dict(input=x, logits=f32(z))
+    for i, a in enumerate(model.outputs[:9], start=1):          # a1…a9 (model.md §5)
+        t[f"a{i}"] = f32(a)
+    cases.append(("model", "forward completo, 4 imágenes sintéticas, pesos = initial_weights.tb", t))
+
+    # ---- T2: un paso de entrenamiento con un lote sintético de 32 (el lote real 1 llega en la FASE 4, D-034)
+    g = gen()
+    x = g.images(32)
+    y = np.array([int(g.rng.next() & 1) for _ in range(32)], np.uint8)
+    model = CNN(np.float64)
+    model.load_params({k: f64(v) for k, v in weights.items()})
+    loss, dz = bce_with_logits(model.forward(f64(x)), y)
+    model.backward(dz)
+    grads, params = model.grads(), model.params()
+    t = dict(input=x, labels=y, loss=f32([loss]))
+    for name in sorted(weights):
+        t[f"weights_init.{name}"] = weights[name]
+        t[f"grads.{name}"] = f32(grads[name])
+        t[f"weights_updated.{name}"] = f32(f64(weights[name]) - LEARNING_RATE * grads[name])
+    cases.append(("train_step", "un paso SGD (lr 0,01), lote SINTÉTICO de 32 con pesos iniciales", t))
     return cases
 
 
@@ -182,7 +217,7 @@ def main():
 
     tdir = ROOT / "shared" / "test_vectors"
     counters, rows = {}, []
-    for op, purpose, tensors in build_cases():
+    for op, purpose, tensors in build_cases(w):
         counters[op] = counters.get(op, 0) + 1
         case = f"case_{counters[op]:03d}"
         (tdir / op).mkdir(parents=True, exist_ok=True)

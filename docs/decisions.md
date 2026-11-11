@@ -94,11 +94,20 @@ Orden: pool de entrenamiento clases 0→9, luego pool de test clases 0→9 (`dat
 **Decisión**: referencia en FP64 sobre entradas FP32 exactas. **Alternativa descartada**: generarlos con el propio motor FP32 (la prueba T1 compararía el motor consigo mismo).
 **Consecuencia**: la tolerancia 1e-5/1e-4 mide el error real del motor FP32; margen medido en `docs/python.md` §10.
 
+### D-034 — `train_step`: caso sintético ahora, lote real 1 en la FASE 4 *(2026-11-11)*
+**Contexto**: `architecture.md` §10.1 define el caso T2 con el lote real 1 de la época 1, que necesita el dataset y las permutaciones (FASE 4).
+**Decisión**: `train_step/case_001` usa un lote **sintético** de 32 (splitmix64 → uint8 → `/255`) con los pesos iniciales compartidos; `case_002` (lote real) se añade en la FASE 4. Así la matemática del paso completo queda verificable ya, sin esperar al dataset.
+**Consecuencia**: el criterio de aceptación 6 de `training.md` §10 se cumple solo cuando existan ambos casos.
+
 ---
 
 ## B. Decisiones pendientes de aprobación
 
-Ninguna. (P-001…P-015 resueltas; ver §A.)
+### P-016 — Criterio de error escalado además de atol/rtol en T1/T2 *(afecta a los 5 motores futuros)*
+**Hallazgo (FASE 3)**: las tolerancias de `architecture.md` §12 (`atol = rtol = 1e-4` en gradientes y pesos) son 100–1000× más laxas que el error real del motor FP32 (≈1e-7). El 60 % de `dense1.weight` y el 34 % de `conv2.weight` valen < 1e-4 en el lote T2, y `lr·g ≤ 1e-2`. Medido con mutaciones: **un `lr` erróneo del 1 % o 0,1 % pasa T2 con el contrato actual**.
+- **Recomendada**: añadir un criterio por tensor `max|a−b| / max|b| < 1e-5` (error escalado; valor medido ≤ 1,1e-6, margen 9×) como **segundo requisito** de T1/T2, y mantener atol/rtol tal cual. Un motor con peor aritmética (p. ej. suma ingenua) tendría que justificar y documentar el incumplimiento.
+- Alternativa: no tocar el contrato; el motor Python ya lo aplica en sus propias pruebas (`test_scaled_error_per_tensor`, `test_t2_weight_update_is_exactly_lr_times_gradient`) pero los otros cinco quedarían con un T2 débil.
+- No bloquea la FASE 4.
 
 ## C. Cuadro de fases y estado
 
@@ -107,7 +116,7 @@ Ninguna. (P-001…P-015 resueltas; ver §A.)
 | 0 | Análisis y especificación (4 contratos + architecture + python + decisions) | Hecha (2026-11-10) |
 | 1 | Validación documental cruzada | **Hecha 2026-11-11** |
 | 2 | Motor matemático Python + vectores dorados | **Hecha 2026-11-11** (operaciones; el modelo completo es la FASE 3) |
-| 3 | Integración del modelo | Pendiente |
+| 3 | Integración del modelo | **Hecha 2026-11-11** (P-016 abierto, no bloquea) |
 | 4 | Dataset (descarga, derivación, manifiestos) | Pendiente |
 | 5 | Entrenamiento completo | Pendiente |
 | 6 | Inferencia | Pendiente |
@@ -122,3 +131,4 @@ Ninguna. (P-001…P-015 resueltas; ver §A.)
 | 2026-11-11 | P-001…P-010 aprobadas (P-007 por defecto) → D-018…D-027. FASE 1: P-011…P-015 nuevos. |
 | 2026-11-11 | P-011…P-015 aprobadas → D-028…D-032. Sin pendientes. |
 | 2026-11-11 | FASE 2 hecha; D-033. |
+| 2026-11-11 | FASE 3 hecha; D-034 y P-016. |

@@ -2,7 +2,7 @@
 
 Clasificador neuronal de imágenes (**¿perro o no perro?**) implementado desde cero en **seis lenguajes** para comparar capacidades, rendimiento y complejidad de cada uno al construir motores de IA.
 
-**Estado**: FASE 2 hecha (operaciones y capas del motor Python con 69 pruebas, 2026-11-11). Siguiente: FASE 3 (integración del modelo).
+**Estado**: FASE 3 hecha (modelo completo del motor Python, 108 pruebas, 2026-11-11). Siguiente: FASE 4 (dataset).
 
 ## Filosofía
 
@@ -34,7 +34,7 @@ tests/             Pruebas transversales del repositorio
 | [docs/benchmark.md](docs/benchmark.md) | Cinco categorías (rendimiento, recursos, calidad, complejidad, portabilidad), procedimiento y formatos |
 | [docs/architecture.md](docs/architecture.md) | Contratos entre los seis motores: TensorBundle v1, CLI, vectores de prueba, tolerancias |
 | [docs/python.md](docs/python.md) | Propuesta del motor Python: módulos, estrategia im2col+GEMM, pruebas |
-| [docs/decisions.md](docs/decisions.md) | Decisiones D-001…D-033 (sin pendientes) |
+| [docs/decisions.md](docs/decisions.md) | Decisiones D-001…D-034; pendiente P-016 (tolerancias) |
 
 ## Resumen técnico
 
@@ -50,7 +50,7 @@ tests/             Pruebas transversales del repositorio
 | 0 | Especificación contractual | Terminada |
 | 1 | Validación documental cruzada | **Hecha** (`docs/validation-fase1.md`) |
 | 2 | Motor matemático Python + vectores dorados | **Hecha** (18 vectores, pesos iniciales, gradcheck) |
-| 3 | Integración del modelo | Pendiente |
+| 3 | Integración del modelo | **Hecha** (gradcheck del modelo completo, T1 + T2 sintético) |
 | 4 | Dataset | Pendiente |
 | 5 | Entrenamiento | Pendiente |
 | 6 | Inferencia | Pendiente |

@@ -314,7 +314,8 @@ Casos obligatorios por operación (mínimos; se añadirán si se detectan diverg
 - **dense**: (1) formas reales dense1; (2) caso cuadrado pequeño verificable a mano.
 - **bce**: (1) logits = 0; (2) logits grandes positivos y negativos (sin overflow); (3) mezcla realista.
 - **model**: batch de 4 imágenes sintéticas deterministas.
-- **train_step**: el lote real 1 de la época 1 (posiciones `perm₁[0..32)` de train) con los pesos iniciales compartidos.
+- **train_step**: `case_001` con un lote **sintético** de 32 y los pesos iniciales compartidos; `case_002` (FASE 4) con el lote real 1 de la época 1 (posiciones `perm₁[0..32)` de train). Ver D-034.
+- **model**: usa los pesos de `shared/initial_weights/initial_weights.tb` (no los incluye); `a1`…`a9` según `model.md` §5.
 
 ### 10.2 Generación y arranque (bootstrap) del sistema de confianza
 
@@ -376,3 +377,4 @@ Justificación: epsilon de FP32 ≈ 1,19·10⁻⁷; una acumulación de ~10³–
 | 1.0-draft r1 | 2026-11-11 | FASE 1: forma del índice TensorBundle (ndim ≤ 4), política git coherente con D-017, generador de pesos (D-018) (ver `docs/validation-fase1.md`). |
 | 1.0-draft r2 | 2026-11-11 | CIFAR-10 binario (D-028) y flujo de selección (D-029) reflejados. |
 | 1.0-draft r3 | 2026-11-11 | Semillas de vectores dorados y precisión de referencia FP64 (D-033). |
+| 1.0-draft r4 | 2026-11-11 | Casos `model` y `train_step` (D-034); P-016 propuesto sobre tolerancias. |
