@@ -15,7 +15,8 @@ DEFAULT_DATA = ROOT.parents[1] / "shared"
 def cmd_tests(args):
     import pytest
     return int(pytest.main(["-q", "-p", "no:cacheprovider", str(ROOT / "tests" / "test_golden_vectors.py"),
-                            str(ROOT / "tests" / "test_training.py")]))
+                            str(ROOT / "tests" / "test_training.py"),
+                            str(ROOT / "tests" / "test_inference.py")]))
 
 
 def cmd_train(args):
@@ -30,8 +31,20 @@ def cmd_train(args):
 
 
 def cmd_infer(args):
-    print("infer: pendiente (FASE 6)", file=sys.stderr)
-    return 2
+    import json
+
+    from .inference.predictor import Predictor, read_images
+    if bool(args.image) == bool(args.batch):
+        print("error: indica exactamente uno de --image o --batch", file=sys.stderr)
+        return 2
+    try:
+        images = read_images(args.image or args.batch, single=bool(args.image))
+        res = Predictor.load(args.model).predict_batch(images)
+    except (OSError, ValueError) as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
+    print(json.dumps(res[0] if args.image else res, allow_nan=False))
+    return 0
 
 
 def main(argv=None):

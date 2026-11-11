@@ -2,9 +2,9 @@
 
 Motor #1: Python 3 + NumPy, sin frameworks de ML. Contrato en `../../docs/` (`model.md`, `python.md`).
 
-**Estado (FASE 5)**: operaciones, capas, `CNN`, SGD, cargador de datos, entrenamiento, checkpoints y CLI (`tests`, `train`) implementados y probados; inferencia (FASE 6) pendiente.
+**Estado (FASE 6)**: operaciones, capas, `CNN`, SGD, cargador de datos, entrenamiento, checkpoints, inferencia y CLI (`tests`, `train`, `infer`) implementados y probados.
 
-Ejecutar: `.venv/bin/python -m src.main train --run reference_001` (resultados en `runs/`, ignorado por git) y `.venv/bin/python -m src.main tests`.
+Ejecutar: `.venv/bin/python -m src.main train --run reference_001` (resultados en `runs/`, ignorado por git) `.venv/bin/python -m src.main tests` y `.venv/bin/python -m src.main infer --model runs/reference_001/model_final.tb --image img.bin` (o `--batch`).
 
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt

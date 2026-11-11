@@ -99,6 +99,13 @@ Orden: pool de entrenamiento clases 0→9, luego pool de test clases 0→9 (`dat
 **Decisión**: `train_step/case_001` usa un lote **sintético** de 32 (splitmix64 → uint8 → `/255`) con los pesos iniciales compartidos; `case_002` (lote real) se añade en la FASE 4. Así la matemática del paso completo queda verificable ya, sin esperar al dataset.
 **Consecuencia**: el criterio de aceptación 6 de `training.md` §10 se cumple solo cuando existan ambos casos.
 
+### D-037 — Detalles de la inferencia no fijados por el contrato *(2026-11-11; lagunas cerradas en la FASE 6)*
+- La clase negativa se etiqueta `"NOT_DOG"` (nombre ya usado en model.md y dataset.md; architecture.md §8 solo ejemplificaba `"DOG"`).
+- `probability` y `confidence` se calculan con σ en FP32, se pasan a FP64 y se redondean a 3 decimales con `round` de Python (mitades al par); `confidence = max(p, 1−p)` sobre el valor sin redondear.
+- `--image` exige exactamente 3072 bytes; `--batch` un múltiplo no nulo de 3072. Cualquier entrada inválida, fichero inexistente o modelo corrupto → mensaje en stderr y código de salida 2, sin salida JSON.
+- Se pasa `--image` o `--batch`, nunca ambos ni ninguno. Salida JSON compacta en una línea (objeto con `--image`, array con `--batch`).
+- El modelo puede ser `model_final.tb`, un checkpoint o `initial_weights.tb` (se ignoran los `meta.*`).
+
 ### D-036 — Detalles del entrenamiento no fijados por el contrato *(2026-11-11; lagunas cerradas en la FASE 5)*
 - `train_loss` de época y `val_loss`/`test_loss` se calculan como media en **FP32 con suma secuencial** en el orden de presentación/manifiesto (training.md §4-§5 solo decía «media»).
 - `meta.contract_version` = **1** (contrato v1.0), el mismo valor que `manifest.csv` de los vectores.
@@ -129,7 +136,7 @@ Orden: pool de entrenamiento clases 0→9, luego pool de test clases 0→9 (`dat
 | 3 | Integración del modelo | **Hecha 2026-11-11** (P-016 abierto, no bloquea) |
 | 4 | Dataset (descarga, derivación, manifiestos) | **Hecha 2026-11-11** |
 | 5 | Entrenamiento completo | Hecha (2026-11-11) |
-| 6 | Inferencia | Pendiente |
+| 6 | Inferencia | Hecha (2026-11-11) |
 | 7 | Arnés de benchmark + línea base Python | Pendiente |
 | 8 | Documentación final | Pendiente |
 
@@ -144,3 +151,4 @@ Orden: pool de entrenamiento clases 0→9, luego pool de test clases 0→9 (`dat
 | 2026-11-11 | FASE 3 hecha; D-034 y P-016. |
 | 2026-11-11 | FASE 4 hecha; D-035. P-016 sigue pendiente. |
 | 2026-11-11 | FASE 5 hecha; D-036. P-016 sigue pendiente. |
+| 2026-11-11 | FASE 6 hecha; D-037. P-016 sigue pendiente. |

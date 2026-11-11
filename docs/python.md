@@ -135,11 +135,11 @@ El CLI reproduce exactamente el contrato de `architecture.md` §8 (`tests`/`trai
 3. T1 completo (`test_golden_vectors.py`) contra los vectores generados.
 4. La serialización TensorBundle ida/vuelta es byte-idéntica (reescritura produce el mismo SHA-256).
 
-## 9. Estado (2026-11-11, tras la FASE 5)
+## 9. Estado (2026-11-11, tras la FASE 6)
 
-**Implementado y probado** (`implementations/python/`, 124 pruebas del motor + 16 transversales):
-`tensor_utils`, `initializers`, `activations`, `losses`, `Dense`, `Flatten`, `ReLU`, `MaxPool2D`, `Conv2D`, `model/cnn.py`, `training/optimizer.py`, `data/preprocessing.py` y `data/dataloader.py` (`Dataset` en RAM, `load_permutation`, `sequential_batches`), `tests/gradcheck.py`, `training/trainer.py`, `training/checkpoint.py`, `main.py` (`tests` y `train`).
-**Pendiente**: `inference/*` y `main.py infer` (FASE 6), harness de benchmark (FASE 7).
+**Implementado y probado** (`implementations/python/`, 131 pruebas del motor + 16 transversales):
+`tensor_utils`, `initializers`, `activations`, `losses`, `Dense`, `Flatten`, `ReLU`, `MaxPool2D`, `Conv2D`, `model/cnn.py`, `training/optimizer.py`, `data/preprocessing.py` y `data/dataloader.py` (`Dataset` en RAM, `load_permutation`, `sequential_batches`), `tests/gradcheck.py`, `training/trainer.py`, `training/checkpoint.py`, `main.py` (`tests`, `train`, `infer`), `inference/predictor.py`.
+**Pendiente**: harness de benchmark (FASE 7).
 
 ## 10. Resultados medidos (FASES 2 y 3)
 
@@ -169,6 +169,14 @@ Ejecución `reference_001` (20 épocas, mono-hilo, Python 3.14 / NumPy 2.5, sin 
 - Tiempo indicativo: ≈ 3,2 s por época de entrenamiento (no es benchmark: sin protocolo de FASE 7).
 - Pruebas: `tests/test_training.py` (determinismo SHA-256 con 1 época ×2, salidas legibles, formato `%.9g`, pesos iniciales bit-idénticos, abortar con NaN) y `main.py tests` (T1 + T2 + entrenamiento: 50 pruebas).
 
+## 10c. Inferencia (FASE 6)
+
+- El predictor reproduce **bit a bit** los logits que el entrenador escribió en `test_logits.csv` (mismo `forward`, misma normalización `float32(u8)/255`).
+- Vía CLI, `infer --batch` sobre las 2000 imágenes de test con `reference_001` da exactitud 0,7965, igual que `final_metrics.json`.
+- Conversión logit → JSON comprobada con logits fijados a mano (0, ±1, ±10, ±100, −0,0); `z = 0` ⇒ `DOG`, probabilidad 0,5.
+- Entradas inválidas (tamaño erróneo, vacío, `--image` con varias imágenes, sin/ambos flags, modelo inexistente o corrupto) → código 2 y mensaje en stderr.
+- Pruebas: `tests/test_inference.py` (7) y `main.py tests` (57 en total).
+
 ## 11. Historial de cambios
 
 | Versión | Fecha | Cambio |
@@ -180,3 +188,4 @@ Ejecución `reference_001` (20 épocas, mono-hilo, Python 3.14 / NumPy 2.5, sin 
 | 1.0-draft r4 | 2026-11-11 | FASE 3: `CNN`, SGD, gradcheck del modelo completo, resultados medidos. |
 | 1.0-draft r5 | 2026-11-11 | FASE 4: datos, T2 con lote real. |
 | 1.0-draft r6 | 2026-11-11 | FASE 5: trainer, checkpoints, CLI, resultados de referencia. |
+| 1.0-draft r7 | 2026-11-11 | FASE 6: predictor, `infer`, D-037. |
