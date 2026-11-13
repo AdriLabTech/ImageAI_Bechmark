@@ -177,7 +177,7 @@ Esquema `summary.json` (un fichero por lenguaje, agregado por el arnés):
   },
   "resources": {
     "ram_max_mb": 0.0, "ram_mean_mb": 0.0, "cpu_mean_pct": 0.0, "cpu_max_pct": 0.0,
-    "executable_size_mb": 0.0, "model_size_mb": 0.3167
+    "executable_size_mb": 0.0, "model_size_mb": 0.3021
   },
   "quality": {
     "accuracy": 0.0, "precision": 0.0, "recall": 0.0, "f1": 0.0, "auc_roc": 0.0,
@@ -221,3 +221,4 @@ Categoría secundaria futura (no parte de la comparación inicial): mismas métr
 | 1.0-draft | 2026-11-10 | Primera redacción completa (FASE 0). |
 | 1.0-draft r1 | 2026-11-11 | FASE 1: referencia cruzada a T3 y tamaño de modelo de ejemplo (13 tensores, 316.748 B) (ver `docs/validation-fase1.md`). |
 | 1.0-draft r2 | 2026-11-11 | Regla de atípicos MAD (D-030), semántica del calentamiento (D-031), `data_load_s` (D-032). |
+| 1.0-draft r3 | 2026-11-11 | FASE 7: ejemplo `model_size_mb` corregido (316.748 B = 0,3021 MiB; MB = 2²⁰ B en todo el documento). |

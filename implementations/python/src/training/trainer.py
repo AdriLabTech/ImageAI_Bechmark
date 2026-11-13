@@ -40,8 +40,10 @@ def evaluate(model, dataset):
 
 
 class Trainer:
-    def __init__(self, data_dir, out_dir, run_id="run", epochs=EPOCHS, initial_weights=None, log=print):
+    def __init__(self, data_dir, out_dir, run_id="run", epochs=EPOCHS, initial_weights=None, log=print, warmup=False):
         self.data_dir, self.out_dir, self.run_id, self.epochs, self.log = Path(data_dir), Path(out_dir), run_id, epochs, log
+        self.warmup = warmup          # benchmark.md §5.2: 1 época sobre una copia y recarga de los pesos iniciales (D-031)
+        self.perf = {}                # tiempos del motor (benchmark.md §5.3); se rellena en train()
         if not 1 <= epochs <= EPOCHS:
             raise ValueError(f"epochs debe estar en [1, {EPOCHS}]")
         self.initial_weights = Path(initial_weights) if initial_weights else self.data_dir / "initial_weights" / "initial_weights.tb"
@@ -56,26 +58,46 @@ class Trainer:
                 raise RuntimeError(f"{name}: los pesos cargados difieren de initial_weights.tb")
         return model
 
+    def _epoch(self, model, opt, train, perm, batch_times=None):
+        """Una época de training.md §3. Devuelve la lista de pérdidas de lote."""
+        params, losses = model.params(), []
+        for b in range(len(train) // BATCH):
+            t0 = time.perf_counter_ns()
+            x, y = train.batch(perm[b * BATCH:(b + 1) * BATCH])
+            z = model.forward(x)
+            loss, dz = bce_with_logits(z, y)              # lanza FloatingPointError si NaN/Inf
+            model.backward(dz)
+            opt.step(params, model.grads())
+            if batch_times is not None:
+                batch_times.append((time.perf_counter_ns() - t0) / 1e9)
+            losses.append(loss)
+        return losses
+
     def train(self):
         self.out_dir.mkdir(parents=True, exist_ok=True)
-        train, val = Dataset(self.data_dir, "train"), Dataset(self.data_dir, "val")
-        model, opt = self._load_model(), SGD()
-        params = model.params()
-        log_rows = []
-        for e in range(1, self.epochs + 1):
-            perm = load_permutation(self.data_dir, e)
-            batch_losses = []
+        t0 = time.perf_counter()                      # data_load_s (D-032): todo a RAM antes de cronometrar el entrenamiento
+        train, val, test = (Dataset(self.data_dir, s) for s in ("train", "val", "test"))
+        perms = [load_permutation(self.data_dir, e) for e in range(1, EPOCHS + 1)]
+        data_load_s = time.perf_counter() - t0
+        warmup_s = 0.0
+        if self.warmup:                               # sobre una COPIA: el modelo medido se carga después, desde el fichero
             t0 = time.perf_counter()
-            for b in range(len(train) // BATCH):
-                x, y = train.batch(perm[b * BATCH:(b + 1) * BATCH])
-                z = model.forward(x)
-                loss, dz = bce_with_logits(z, y)          # lanza FloatingPointError si NaN/Inf
-                model.backward(dz)
-                opt.step(params, model.grads())
-                batch_losses.append(loss)
+            wm = self._load_model()
+            self._epoch(wm, SGD(), train, perms[0])
+            evaluate(wm, val)
+            warmup_s = time.perf_counter() - t0
+            del wm
+        model, opt = self._load_model(), SGD()
+        log_rows, batch_times, epoch_times, val_times = [], [], [], []
+        for e in range(1, self.epochs + 1):
+            t0 = time.perf_counter()
+            batch_losses = self._epoch(model, opt, train, perms[e - 1], batch_times)
             epoch_time = time.perf_counter() - t0
             train_loss = float(_mean32(batch_losses))
+            t0 = time.perf_counter()
             val_loss, val_acc, _ = evaluate(model, val)
+            val_times.append(time.perf_counter() - t0)
+            epoch_times.append(epoch_time)
             save_checkpoint(model, self.out_dir, e, train_loss, val_loss, val_acc)
             row = {"engine": ENGINE, "run": self.run_id, "epoch": e, "train_loss": train_loss,
                    "val_loss": val_loss, "val_accuracy": val_acc, "epoch_time_s": round(epoch_time, 3)}
@@ -86,10 +108,15 @@ class Trainer:
             for row in log_rows:
                 f.write(json.dumps(row) + "\n")
         shutil.copyfile(self.out_dir / f"checkpoint_epoch_{self.epochs:03d}.tb", self.out_dir / "model_final.tb")
-        return self._final(model, val, log_rows)
+        self.perf = {"engine": ENGINE, "run": self.run_id, "epochs": self.epochs, "warmup": self.warmup,
+                     "data_load_s": round(data_load_s, 6), "warmup_s": round(warmup_s, 6),
+                     "train_total_s": round(sum(epoch_times), 6),
+                     "epoch_time_s": [round(t, 6) for t in epoch_times],
+                     "val_epoch_s": [round(t, 6) for t in val_times],
+                     "batch_time_s": [round(t, 6) for t in batch_times]}
+        return self._final(model, val, test, log_rows)
 
-    def _final(self, model, val, log_rows):
-        test = Dataset(self.data_dir, "test")
+    def _final(self, model, val, test, log_rows):
         val_loss, val_acc, _ = evaluate(model, val)
         test_loss, test_acc, logits = evaluate(model, test)
         with open(self.out_dir / "test_logits.csv", "w", encoding="utf-8", newline="") as f:

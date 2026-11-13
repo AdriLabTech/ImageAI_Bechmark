@@ -1,0 +1,92 @@
+{
+ "engine": "python",
+ "date": "2026-11-11T19:25:18+01:00",
+ "source": "perf_run_001 de la primera sesi\u00f3n validada",
+ "model_final_sha256": "03ad67e8cfd7346b9112462aab929f246b8a69181d41432384a83f19190a6853",
+ "test_logits_sha256": "e7d5b343a0b4aaa5b2a239c44f20f5378b38fc1ebc4383c3aac91ed7ef636f5d",
+ "final_metrics_engine": {
+  "engine": "python",
+  "run": "run_001",
+  "epochs": 20,
+  "val_loss": 0.427507221698761,
+  "val_accuracy": 0.8029999732971191,
+  "test_loss": 0.4338524043560028,
+  "test_accuracy": 0.796500027179718
+ },
+ "quality_common_evaluator": {
+  "accuracy": 0.7965,
+  "precision": 0.792694965,
+  "recall": 0.803,
+  "f1": 0.797814208,
+  "auc_roc": 0.879024,
+  "bce_test": 0.433852304,
+  "confusion_matrix": [
+   [
+    790,
+    210
+   ],
+   [
+    197,
+    803
+   ]
+  ],
+  "calibration_ece": 0.027720638,
+  "calibration_bins": [
+   [
+    0.034881479,
+    0.043037975,
+    395
+   ],
+   [
+    0.150196339,
+    0.126506024,
+    166
+   ],
+   [
+    0.248541287,
+    0.230263158,
+    152
+   ],
+   [
+    0.347905944,
+    0.414965986,
+    147
+   ],
+   [
+    0.448299951,
+    0.496062992,
+    127
+   ],
+   [
+    0.550093111,
+    0.620437956,
+    137
+   ],
+   [
+    0.653367773,
+    0.628205128,
+    156
+   ],
+   [
+    0.749061056,
+    0.78021978,
+    182
+   ],
+   [
+    0.855028178,
+    0.846153846,
+    234
+   ],
+   [
+    0.948272245,
+    0.921052632,
+    304
+   ]
+  ]
+ },
+ "train_log": "python_reference_train_log.jsonl",
+ "files": {
+  "model": "python_reference_model_final.tb",
+  "test_logits": "python_reference_test_logits.csv"
+ }
+}

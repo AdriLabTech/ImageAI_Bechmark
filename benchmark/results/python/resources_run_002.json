@@ -1,0 +1,18 @@
+{
+ "train": {
+  "samples": 715,
+  "sample_interval_s": 0.1,
+  "ram_max_mb": 93.047,
+  "ram_mean_mb": 88.34,
+  "cpu_mean_pct": 99.37,
+  "cpu_max_pct": 109.79
+ },
+ "infer": {
+  "samples": 17,
+  "sample_interval_s": 0.1,
+  "ram_max_mb": 63.082,
+  "ram_mean_mb": 52.09,
+  "cpu_mean_pct": 98.46,
+  "cpu_max_pct": 109.68
+ }
+}

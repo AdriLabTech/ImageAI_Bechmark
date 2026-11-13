@@ -1,0 +1,241 @@
+{
+ "meta": {
+  "engine": "python",
+  "language_version": "3.14.10",
+  "numpy_version": "2.5.4",
+  "cpu_model": "13th Gen Intel(R) Core(TM) i7-13700H",
+  "ram_gb": 15.3,
+  "kernel": "7.2.15-arch1-1",
+  "governor": "performance",
+  "affinity": "core 0",
+  "blas_threads": 1,
+  "date": "2026-11-11T19:25:18+01:00",
+  "build": "release",
+  "fast_math": false,
+  "runs": 5,
+  "warmup": "1 \u00e9poca sobre copia + recarga de pesos iniciales (D-031)"
+ },
+ "performance": {
+  "data_load_s": {
+   "median": 0.007052,
+   "mean": 0.0070588,
+   "std": 0.00014987728313523702,
+   "min": 0.006896,
+   "max": 0.007294,
+   "n": 5
+  },
+  "train_total_s": {
+   "median": 63.402031,
+   "mean": 63.42978480000001,
+   "std": 0.13136880305917312,
+   "min": 63.283962,
+   "max": 63.575701,
+   "n": 5,
+   "per_run": [
+    63.556137,
+    63.283962,
+    63.575701,
+    63.331093,
+    63.402031
+   ],
+   "outlier": [
+    false,
+    false,
+    false,
+    false,
+    false
+   ],
+   "rel_std": 0.0020719967639392044
+  },
+  "epoch_time_s": {
+   "median": 3.164476,
+   "per_epoch_median": [
+    3.186769,
+    3.162747,
+    3.170062,
+    3.202488,
+    3.156746,
+    3.157203,
+    3.164187,
+    3.164765,
+    3.149336,
+    3.153504,
+    3.165077,
+    3.15775,
+    3.143621,
+    3.160399,
+    3.178809,
+    3.152639,
+    3.166647,
+    3.188658,
+    3.175722,
+    3.167769
+   ],
+   "std": 0.039932835444201016
+  },
+  "batch_time_s": {
+   "median": 0.012632,
+   "p95": 0.01393505,
+   "n": 5000,
+   "from_run": 5
+  },
+  "val_epoch_s": {
+   "median": 0.212818,
+   "std": 0.003986819193329819
+  },
+  "inference_latency_s": {
+   "median": 0.00026,
+   "p95": 0.000277,
+   "n": 1000,
+   "note": "mediana entre ejecuciones de la mediana y del p95 de cada una (1000 medidas por ejecuci\u00f3n)"
+  },
+  "inference_throughput_img_s": {
+   "median": 4896.6565,
+   "p95": 5006.6263500000005,
+   "n": 100,
+   "note": "el p95 es el percentil 95 del throughput (lotes r\u00e1pidos); no es latencia"
+  }
+ },
+ "resources": {
+  "ram_max_mb": 93.047,
+  "ram_mean_mb": 88.34,
+  "cpu_mean_pct": 99.36,
+  "cpu_max_pct": 109.83,
+  "executable_size_mb": 89.694,
+  "model_size_mb": 0.3021
+ },
+ "quality": {
+  "accuracy": 0.7965,
+  "precision": 0.792694965,
+  "recall": 0.803,
+  "f1": 0.797814208,
+  "auc_roc": 0.879024,
+  "bce_test": 0.433852304,
+  "confusion_matrix": [
+   [
+    790,
+    210
+   ],
+   [
+    197,
+    803
+   ]
+  ],
+  "calibration_ece": 0.027720638,
+  "calibration_bins": [
+   [
+    0.034881479,
+    0.043037975,
+    395
+   ],
+   [
+    0.150196339,
+    0.126506024,
+    166
+   ],
+   [
+    0.248541287,
+    0.230263158,
+    152
+   ],
+   [
+    0.347905944,
+    0.414965986,
+    147
+   ],
+   [
+    0.448299951,
+    0.496062992,
+    127
+   ],
+   [
+    0.550093111,
+    0.620437956,
+    137
+   ],
+   [
+    0.653367773,
+    0.628205128,
+    156
+   ],
+   [
+    0.749061056,
+    0.78021978,
+    182
+   ],
+   [
+    0.855028178,
+    0.846153846,
+    234
+   ],
+   [
+    0.948272245,
+    0.921052632,
+    304
+   ]
+  ],
+  "numeric_error_vs_reference": {
+   "per_run": [
+    {
+     "max_abs_logit_diff": 0.0,
+     "mean_abs_logit_diff": 0.0,
+     "flipped_predictions_pct": 0.0
+    },
+    {
+     "max_abs_logit_diff": 0.0,
+     "mean_abs_logit_diff": 0.0,
+     "flipped_predictions_pct": 0.0
+    },
+    {
+     "max_abs_logit_diff": 0.0,
+     "mean_abs_logit_diff": 0.0,
+     "flipped_predictions_pct": 0.0
+    },
+    {
+     "max_abs_logit_diff": 0.0,
+     "mean_abs_logit_diff": 0.0,
+     "flipped_predictions_pct": 0.0
+    },
+    {
+     "max_abs_logit_diff": 0.0,
+     "mean_abs_logit_diff": 0.0,
+     "flipped_predictions_pct": 0.0
+    }
+   ],
+   "max_abs_logit_diff": 0.0,
+   "mean_abs_logit_diff": 0.0,
+   "flipped_predictions_pct": 0.0
+  }
+ },
+ "complexity": {
+  "loc_src": 695,
+  "loc_total": 1616,
+  "dev_hours": null,
+  "runtime_dependencies": "numpy==2.5.4",
+  "memory_mgmt": null,
+  "debug_difficulty": null,
+  "optimization_ease": null,
+  "parallelization": null,
+  "note": "dev_hours y r\u00fabricas 1-5 pendientes: sin registro fiable de horas; las valora Adri\u00e1n (benchmark.md \u00a76.4)"
+ },
+ "portability": {
+  "build_commands": 3,
+  "os_tested": [
+   "linux"
+  ],
+  "toolchain_size_mb": null,
+  "distribution": null,
+  "ecosystem": null,
+  "note": "r\u00fabricas pendientes (benchmark.md \u00a76.5)"
+ },
+ "validity": {
+  "t1_pass": true,
+  "t2_pass": true,
+  "deterministic": true,
+  "t3_pass": null,
+  "determinism_basis": "SHA-256 de model_final.tb id\u00e9ntico en las 5 ejecuciones de la sesi\u00f3n",
+  "t3_note": "no evaluable hasta tener un segundo motor (training.md \u00a79)",
+  "needs_repeat_rel_std_gt_5pct": false,
+  "any_outlier": false
+ }
+}
